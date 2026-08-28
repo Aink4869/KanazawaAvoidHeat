@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>日陰をやや避けるルート検索（旧システム）</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #fff;
+      --accent: #0d47a1;
+      --accent-hi: #1565c0;
+      --ok: #2e7d32;
+      --muted: #546e7a;
+      --border: #cfd8dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: #263238;
+    }
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      padding: 12px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      margin: 0 0 4px;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    header p {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    header nav {
+      margin-top: 10px;
+      font-size: 0.85rem;
+    }
+    header nav a { color: var(--accent-hi); font-weight: 600; }
+    header nav a.current { color: #263238; text-decoration: none; pointer-events: none; }
+    .sys-note {
+      margin: 8px 0 0;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      border-radius: 8px;
+      background: #eceff1;
+    }
+    .sys-note.new { background: #e8f5e9; color: #1b5e20; }
+    .toolbar {
+      padding: 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .toolbar-section {
+      margin-top: 14px;
+      padding: 14px 14px 16px;
+      background: #f7fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .toolbar-section:first-child { margin-top: 0; }
+    .section-h {
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      max-width: 28rem;
+    }
+    .action-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @media (min-width: 560px) {
+      .action-bar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: stretch;
+      }
+      .action-bar .btn-primary {
+        flex: 2;
+        margin-top: 0;
+        min-width: 200px;
+      }
+      .action-bar .btn-secondary { flex: 1; margin-top: 0; }
+    }
+    .steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .step-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      width: 100%;
+    }
+    .btn {
+      flex: 1;
+      min-width: 140px;
+      min-height: 48px;
+      padding: 10px 14px;
+      font-size: 1rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover { background: #e3f2fd; border-color: #90caf9; }
+    .btn.active {
+      border-color: var(--accent);
+      background: #e8eaf6;
+      box-shadow: 0 0 0 2px rgba(13, 71, 161, 0.25);
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 12px;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hi); }
+    .btn-secondary {
+      min-height: 44px;
+      font-size: 0.9rem;
+      margin-top: 0;
+      border-radius: 8px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .field input, .field select {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 10px;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .factors {
+      margin-top: 0;
+      padding: 10px 12px;
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .factors > p {
+      margin: 0 0 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .factor-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    @media (min-width: 520px) {
+      .factor-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .factor-grid label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      min-height: 44px;
+      padding: 6px 8px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .factor-grid input { width: auto; min-height: auto; }
+    details.adv {
+      grid-column: 1 / -1;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    details.adv summary { cursor: pointer; color: var(--accent-hi); }
+    .adv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    @media (min-width: 520px) {
+      .adv-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #eceff1;
+      font-size: 0.9rem;
+      min-height: 2.8em;
+    }
+    .status.ok { background: #e8f5e9; color: #1b5e20; }
+    .status.err { background: #ffebee; color: #b71c1c; }
+    .result {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: #fafafa;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      white-space: pre-wrap;
+      max-height: 160px;
+      overflow: auto;
+      line-height: 1.45;
+      border: 1px solid var(--border);
+    }
+    .foot-line {
+      margin: 0 0 8px;
+      line-height: 1.55;
+    }
+    .foot-line:last-child { margin-bottom: 0; }
+    .foot strong { color: #455a64; font-weight: 600; }
+    #map {
+      flex: 1;
+      min-height: 320px;
+      height: 50vh;
+      width: 100%;
+    }
+    .foot {
+      padding: 8px 12px;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--card);
+      border-top: 1px solid var(--border);
+    }
+    .foot a { color: var(--accent-hi); }
+    .foot code {
+      font-size: 0.68rem;
+      word-break: break-all;
+    }
+
+    /* PC（デスクトップ）: 左にメニュー、右に地図の2カラム */
+    @media (min-width: 980px) {
+      html, body { height: 100%; }
+      .app {
+        max-width: none;
+        margin: 0;
+        height: 100vh;
+        display: grid;
+        grid-template-columns: 430px 1fr;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas:
+          "head map"
+          "tool map"
+          "foot map";
+      }
+      header { grid-area: head; }
+      .toolbar { grid-area: tool; overflow-y: auto; }
+      #map {
+        grid-area: map;
+        height: 100vh;
+        min-height: 0;
+        border-left: 1px solid var(--border);
+      }
+      .foot { grid-area: foot; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1 id="pageTitle">日陰をやや避けるルート検索（旧システム）</h1>
+      <p>地図は国土地理院の標準利用です。サーバを起動したうえで、下のブロックに沿って操作してください。</p>
+      <p class="sys-note" id="sysNote">旧システム：軽量モデルの日陰のみでルートを求めます（樹木の追加日陰は含みません）。</p>
+      <nav>
+        <a href="/route" id="navOld">旧システム</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/route/new" id="navNew">最新システム</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/route/compare" id="navCmp">ルート比較</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/">日陰マップ</a>
+      </nav>
+    </header>
+
+    <div class="toolbar">
+      <div class="toolbar-section">
+        <h2 class="section-h">1. 地図で起点・終点</h2>
+        <div class="step-label">どちらか一方がハイライトのとき、その地点を地図タップで指定します。</div>
+        <div class="steps">
+          <button type="button" class="btn" id="btnOrig" aria-pressed="false">① 起点を地図で指定</button>
+          <button type="button" class="btn" id="btnDest" aria-pressed="false">② 終点を地図で指定</button>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="csDest">終点をクーリングシェルターから</label>
+          <select id="csDest"><option value="">— 読み込み中 —</option></select>
+        </div>
+        <p class="step-label" style="margin-top:8px;">水色の点＝CS（57件）。点をタップすると終点になります。立ち寄り必須の比較は <a href="http://127.0.0.1:8766/compare">統合版 8766</a>。</p>
+      </div>
+
+      <div class="toolbar-section">
+        <h2 class="section-h">2. 日付・時刻</h2>
+        <div class="date-row">
+          <div class="field">
+            <label for="routeDate">日付（夏季データ内）</label>
+            <input type="date" id="routeDate" value="2026-08-05" min="2026-06-01" max="2026-09-30" />
+          </div>
+          <div class="field">
+            <label for="hour">時刻（6〜18時）</label>
+            <select id="hour"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar-section">
+        <h2 class="section-h">3. ルートのコスト要素</h2>
+        <div class="factors">
+          <p>チェックを外した項目は計算に含めません。少なくとも1つはオンにしてください。</p>
+          <div class="factor-grid">
+            <label><input type="checkbox" id="f_dist" checked /> 距離</label>
+            <label><input type="checkbox" id="f_time" checked /> 時間（歩速）</label>
+            <label><input type="checkbox" id="f_slope" checked /> 勾配（DEM）</label>
+            <label><input type="checkbox" id="f_shadow" checked /> 日陰</label>
+            <label id="t_f_tree" hidden><input type="checkbox" id="f_tree" /> 樹木日陰（高精度の追加分）</label>
+          </div>
+          <details class="adv">
+            <summary>重み・歩行速度を細かく設定</summary>
+            <div class="adv-grid">
+              <div class="field">
+                <label for="w_dist">距離の重み</label>
+                <input type="number" id="w_dist" value="1" min="0" max="100" step="0.1" />
+              </div>
+              <div class="field">
+                <label for="w_time">時間の重み</label>
+                <input type="number" id="w_time" value="1" min="0" max="100" step="0.1" />
+              </div>
+              <div class="field">
+                <label for="w_slope">勾配の重み</label>
+                <input type="number" id="w_slope" value="3" min="0" max="100" step="0.1" />
+              </div>
+              <div class="field">
+                <label for="w_shadow">日陰の重み（正=日当たり優先 / 負=日陰の多いルート優先）</label>
+                <input type="number" id="w_shadow" value="4" min="-100" max="100" step="0.1" />
+              </div>
+              <div class="field">
+                <label for="walkSpeed">歩行速度 m/s</label>
+                <input type="number" id="walkSpeed" value="1.2" min="0.5" max="3" step="0.1" />
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="toolbar-section action-bar">
+        <button type="button" class="btn-primary" id="btnGo" disabled>③ この条件でルートを表示</button>
+        <button type="button" class="btn btn-secondary" id="btnReset">地点をクリア</button>
+      </div>
+
+      <div class="status" id="status" role="status">① または ② を押してから、地図をタップしてください。</div>
+      <div class="result" id="out" hidden></div>
+    </div>
+
+    <div id="map" role="application" aria-label="地図"></div>
+
+    <footer class="foot">
+      <p class="foot-line">
+        <strong>地図タイル</strong>
+        <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院（地理院タイル・淡色）</a>
+        ／
+        <a href="https://maps.gsi.go.jp/copyright/ja.html" target="_blank" rel="noopener">利用規約・著作権</a>
+      </p>
+      <p class="foot-line">
+        <strong>API・起動</strong>
+        同じPCで <code>py -3 -m uvicorn nav_app:app --host 127.0.0.1 --port 8765</code> を実行し、本ページは <code>http://127.0.0.1:8765/route</code>（旧）／<code>/route/new</code>（最新）／<code>/route/compare</code>（比較）で開いてください。<code>file://</code> では通信できません。
+      </p>
+      <p class="foot-line">
+        日陰オーバーレイはトップ <code>/</code>。接続確認は <code>/api/health</code> です。
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      const API_BASE = (function () {
+        if (window.location.protocol === 'file:') {
+          return localStorage.getItem('nav_api_base') || 'http://127.0.0.1:8765';
+        }
+        return '';
+      })();
+      function apiUrl(path) { return API_BASE + path; }
+
+      const SYSTEM_NEW = /\/new$/.test((location.pathname || '').replace(/\/+$/, ''));
+      if (SYSTEM_NEW) {
+        document.title = '日陰をやや避けるルート検索（最新システム）';
+        var titleEl = document.getElementById('pageTitle');
+        if (titleEl) titleEl.textContent = '日陰をやや避けるルート検索（最新システム）';
+        var noteEl = document.getElementById('sysNote');
+        if (noteEl) {
+          noteEl.className = 'sys-note new';
+          noteEl.textContent = '最新システム：軽量モデルの日陰に、高精度モデルだけが持つ樹木日陰を加算してルートを求めます。';
+        }
+        var navNew = document.getElementById('navNew');
+        if (navNew) navNew.className = 'current';
+      } else {
+        var navOld = document.getElementById('navOld');
+        if (navOld) navOld.className = 'current';
+      }
+      const ROUTE_COLOR = SYSTEM_NEW ? '#2e7d32' : '#0d47a1';
+
+      const hourSel = document.getElementById('hour');
+      for (let h = 6; h <= 18; h++) {
+        const o = document.createElement('option');
+        o.value = String(h);
+        o.textContent = h + ' 時';
+        if (h === 14) o.selected = true;
+        hourSel.appendChild(o);
+      }
+
+      const map = L.map('map', { zoomControl: true }).setView([36.5665, 136.6595], 14);
+
+      /* 国土地理院タイル（淡色）— 利用方法は上記リンク先に準拠 */
+      L.tileLayer(
+        'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+        {
+          attribution: '<a href="https://maps.gsi.go.jp/copyright/ja.html" target="_blank" rel="noopener">国土地理院</a>',
+          maxZoom: 18,
+          minZoom: 5,
+        }
+      ).addTo(map);
+
+      let mode = null;
+      let orig = null;
+      let dest = null;
+      let mOrig = null;
+      let mDest = null;
+      let lineLayer = null;
+      let csLayer = null;
+      let csFeatures = [];
+
+      const btnOrig = document.getElementById('btnOrig');
+      const btnDest = document.getElementById('btnDest');
+      const btnGo = document.getElementById('btnGo');
+      const btnReset = document.getElementById('btnReset');
+      const status = document.getElementById('status');
+      const out = document.getElementById('out');
+
+      function setStatus(text, cls) {
+        status.textContent = text;
+        status.className = 'status' + (cls ? ' ' + cls : '');
+      }
+
+      function collectFactors() {
+        return {
+          use_distance: document.getElementById('f_dist').checked,
+          use_time: document.getElementById('f_time').checked,
+          use_slope: document.getElementById('f_slope').checked,
+          use_shadow: document.getElementById('f_shadow').checked,
+          include_tree_shade: SYSTEM_NEW,
+          weight_distance: parseFloat(document.getElementById('w_dist').value),
+          weight_time: parseFloat(document.getElementById('w_time').value),
+          weight_slope: parseFloat(document.getElementById('w_slope').value),
+          weight_shadow: parseFloat(document.getElementById('w_shadow').value),
+          walk_speed_m_s: parseFloat(document.getElementById('walkSpeed').value)
+        };
+      }
+
+      async function loadCoolingShelters() {
+        var r = await fetch(apiUrl('/api/cooling-shelters'));
+        var j = await r.json();
+        if (!r.ok) throw new Error(j.detail || 'CS load failed');
+        csFeatures = j.features || [];
+        var sel = document.getElementById('csDest');
+        sel.innerHTML = '<option value="">— 終点 CS —</option>';
+        if (csLayer) map.removeLayer(csLayer);
+        csLayer = L.layerGroup();
+        csFeatures.forEach(function (feat) {
+          var p = feat.properties || {};
+          var c = feat.geometry.coordinates;
+          var o = document.createElement('option');
+          o.value = String(p.cs_id != null ? p.cs_id : '');
+          o.textContent = p.cs_name || 'CS';
+          sel.appendChild(o);
+          var m = L.circleMarker([c[1], c[0]], {
+            radius: 5, color: '#01579b', fillColor: '#4fc3f7', fillOpacity: 0.8, weight: 1
+          });
+          if (p.cs_name) m.bindTooltip(String(p.cs_name), { direction: 'top', offset: [0, -6], opacity: 0.9 });
+          m.on('click', function () {
+            sel.value = String(p.cs_id);
+            dest = { lat: c[1], lon: c[0] };
+            if (mDest) map.removeLayer(mDest);
+            mDest = L.marker([dest.lat, dest.lon], { title: '終点' }).addTo(map).bindPopup(p.cs_name || '終点');
+            updateGoButton();
+            setStatus('終点: CS「' + (p.cs_name || '') + '」', 'ok');
+          });
+          csLayer.addLayer(m);
+        });
+        csLayer.addTo(map);
+      }
+      document.getElementById('csDest').onchange = function () {
+        if (this.value === '') return;
+        var feat = null;
+        for (var i = 0; i < csFeatures.length; i++) {
+          if (String((csFeatures[i].properties || {}).cs_id) === String(this.value)) { feat = csFeatures[i]; break; }
+        }
+        if (!feat) return;
+        var c = feat.geometry.coordinates;
+        var p = feat.properties || {};
+        dest = { lat: c[1], lon: c[0] };
+        if (mDest) map.removeLayer(mDest);
+        mDest = L.marker([dest.lat, dest.lon], { title: '終点' }).addTo(map).bindPopup(p.cs_name || '終点');
+        updateGoButton();
+        setStatus('終点: CS「' + (p.cs_name || '') + '」', 'ok');
+      };
+
+      async function probeServer() {
+        if (window.location.protocol === 'file:') {
+          setStatus('file:// から API=' + API_BASE + ' に接続を試みます。推奨は http://127.0.0.1:8765/route です。', '');
+        }
+        try {
+          var r = await fetch(apiUrl('/api/health'));
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          await r.json();
+          try { await loadCoolingShelters(); } catch (e2) { /* CS は補助 */ }
+          setStatus('サーバ接続 OK。CS を地図に表示しました。① または ② を押してから地図をタップしてください。', 'ok');
+        } catch (e) {
+          setStatus('API（/api/health）に接続できません。同じアドレスでページを開いているか、py -3 -m uvicorn nav_app:app --host 127.0.0.1 --port 8765 が動いているか確認してください。', 'err');
+        }
+      }
+      probeServer();
+
+      function updateGoButton() {
+        btnGo.disabled = !(orig && dest);
+      }
+
+      function clearMarkers() {
+        if (mOrig) { map.removeLayer(mOrig); mOrig = null; }
+        if (mDest) { map.removeLayer(mDest); mDest = null; }
+        if (lineLayer) { map.removeLayer(lineLayer); lineLayer = null; }
+        orig = null;
+        dest = null;
+        mode = null;
+        btnOrig.classList.remove('active');
+        btnDest.classList.remove('active');
+        btnOrig.setAttribute('aria-pressed', 'false');
+        btnDest.setAttribute('aria-pressed', 'false');
+        updateGoButton();
+        out.hidden = true;
+        setStatus('① または ② を押してから、地図をタップしてください。');
+      }
+
+      btnOrig.onclick = function () {
+        mode = 'orig';
+        btnOrig.classList.add('active');
+        btnDest.classList.remove('active');
+        btnOrig.setAttribute('aria-pressed', 'true');
+        btnDest.setAttribute('aria-pressed', 'false');
+        setStatus('地図上で「起点」をタップしてください。');
+      };
+
+      btnDest.onclick = function () {
+        mode = 'dest';
+        btnDest.classList.add('active');
+        btnOrig.classList.remove('active');
+        btnDest.setAttribute('aria-pressed', 'true');
+        btnOrig.setAttribute('aria-pressed', 'false');
+        setStatus('地図上で「終点」をタップしてください。');
+      };
+
+      btnReset.onclick = clearMarkers;
+
+      map.on('click', function (e) {
+        if (!mode) {
+          setStatus('先に ①起点 または ②終点 を押してください。', 'err');
+          return;
+        }
+        var lat = e.latlng.lat;
+        var lon = e.latlng.lng;
+        if (mode === 'orig') {
+          orig = { lat: lat, lon: lon };
+          if (mOrig) map.removeLayer(mOrig);
+          mOrig = L.marker([lat, lon], { title: '起点' }).addTo(map).bindPopup('起点').openPopup();
+          setStatus('起点を設定しました。続けて ② で終点をタップするか、「ルートを表示」を押してください。', 'ok');
+        } else {
+          dest = { lat: lat, lon: lon };
+          if (mDest) map.removeLayer(mDest);
+          mDest = L.marker([lat, lon], { title: '終点' }).addTo(map).bindPopup('終点').openPopup();
+          setStatus('終点を設定しました。「③ ルートを表示」ボタンを押せます。', 'ok');
+        }
+        mode = null;
+        btnOrig.classList.remove('active');
+        btnDest.classList.remove('active');
+        btnOrig.setAttribute('aria-pressed', 'false');
+        btnDest.setAttribute('aria-pressed', 'false');
+        updateGoButton();
+      });
+
+      btnGo.onclick = async function () {
+        if (!orig || !dest) return;
+        btnGo.disabled = true;
+        setStatus('ルートを計算しています…');
+        out.hidden = true;
+        try {
+          var routeDate = document.getElementById('routeDate').value;
+          var hour = parseInt(hourSel.value, 10);
+          var factors = collectFactors();
+          if (!factors.use_distance && !factors.use_time && !factors.use_slope && !factors.use_shadow) {
+            setStatus('距離・時間・勾配・日陰のうち、少なくとも1つにチェックを入れてください。', 'err');
+            btnGo.disabled = false;
+            updateGoButton();
+            return;
+          }
+          var r = await fetch(apiUrl('/api/route_latlon'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orig_lat: orig.lat,
+              orig_lon: orig.lon,
+              dest_lat: dest.lat,
+              dest_lon: dest.lon,
+              route_date: routeDate,
+              hour: hour,
+              year: 2026,
+              factors: factors
+            })
+          });
+          var j = await r.json();
+          if (!r.ok) {
+            setStatus('エラー: ' + (j.detail || JSON.stringify(j)), 'err');
+            out.hidden = false;
+            out.textContent = JSON.stringify(j, null, 2);
+            btnGo.disabled = false;
+            return;
+          }
+          setStatus(SYSTEM_NEW ? 'ルートを表示しました（緑線）。下に数値サマリがあります。' : 'ルートを表示しました（青線）。下に数値サマリがあります。', 'ok');
+          out.hidden = false;
+          out.textContent = JSON.stringify(j.stats, null, 2);
+          if (lineLayer) map.removeLayer(lineLayer);
+          var latlngs = j.coordinates_latlon.map(function (p) { return [p[0], p[1]]; });
+          lineLayer = L.polyline(latlngs, { color: ROUTE_COLOR, weight: 7, opacity: 0.92 }).addTo(map);
+          map.fitBounds(lineLayer.getBounds(), { padding: [36, 36], maxZoom: 17 });
+        } catch (e) {
+          var msg = '通信に失敗しました。';
+          if (window.location.protocol === 'file:') {
+            msg = 'file:// では API に接続できません。http://127.0.0.1:8765/route で開いてください。';
+          } else if (e instanceof TypeError) {
+            msg = 'ネットワークエラー: ページと同じホスト・ポートで uvicorn（nav_app）が起動しているか確認してください（例: http://127.0.0.1:8765/route）。';
+          } else {
+            msg += ' ' + String(e);
+          }
+          setStatus(msg, 'err');
+          out.hidden = false;
+          out.textContent = String(e);
+        }
+        btnGo.disabled = false;
+        updateGoButton();
+      };
+
+      /* 自動デモ用フック（比較スクリーンショット生成に使用） */
+      window.__map = map;
+      window.__fitBounds = function (b) { map.fitBounds(b, { padding: [55, 55] }); };
+      window.runDemoRoute = async function (opts) {
+        orig = { lat: opts.origLat, lon: opts.origLon };
+        dest = { lat: opts.destLat, lon: opts.destLon };
+        if (mOrig) map.removeLayer(mOrig);
+        if (mDest) map.removeLayer(mDest);
+        mOrig = L.marker([orig.lat, orig.lon], { title: '起点' }).addTo(map).bindPopup('起点 近江町市場');
+        mDest = L.marker([dest.lat, dest.lon], { title: '終点' }).addTo(map).bindPopup('終点 金沢城公園');
+        if (opts.date) document.getElementById('routeDate').value = opts.date;
+        if (opts.hour) hourSel.value = String(opts.hour);
+        var f = opts.factors;
+        document.getElementById('f_dist').checked = !!f.use_distance;
+        document.getElementById('f_time').checked = !!f.use_time;
+        document.getElementById('f_slope').checked = !!f.use_slope;
+        document.getElementById('f_shadow').checked = !!f.use_shadow;
+        if (document.getElementById('f_tree') && f.include_tree_shade !== undefined) {
+          document.getElementById('f_tree').checked = !!f.include_tree_shade;
+        }
+        if (f.weight_shadow !== undefined) document.getElementById('w_shadow').value = f.weight_shadow;
+        var r = await fetch('/api/route_latlon', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orig_lat: orig.lat, orig_lon: orig.lon, dest_lat: dest.lat, dest_lon: dest.lon,
+            route_date: document.getElementById('routeDate').value,
+            hour: parseInt(hourSel.value, 10), year: 2026, factors: f
+          })
+        });
+        var j = await r.json();
+        window.__lastRoute = j;
+        if (!r.ok) { setStatus('エラー: ' + JSON.stringify(j), 'err'); return j; }
+        if (lineLayer) map.removeLayer(lineLayer);
+        var latlngs = j.coordinates_latlon.map(function (p) { return [p[0], p[1]]; });
+        lineLayer = L.polyline(latlngs, { color: opts.color || '#0d47a1', weight: 7, opacity: 0.95 }).addTo(map);
+        var bb = lineLayer.getBounds();
+        window.__bounds = [[bb.getSouth(), bb.getWest()], [bb.getNorth(), bb.getEast()]];
+        if (!opts.noFit) map.fitBounds(bb, { padding: [50, 50], maxZoom: 17 });
+        out.hidden = false; out.textContent = JSON.stringify(j.stats, null, 2);
+        setStatus(opts.label || 'ルートを表示しました。', 'ok');
+        return j;
+      };
+    })();
+  </script>
+</body>
+</html>

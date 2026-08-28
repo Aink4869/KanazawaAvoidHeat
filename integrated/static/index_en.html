@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Integrated route search (Shade + Cooling Shelters)</title>
+  <script>
+    (function () {
+      var base = window.location.protocol === 'file:'
+        ? (localStorage.getItem('integrated_api_base') || 'http://127.0.0.1:8766')
+        : (window.location.origin || 'http://127.0.0.1:8766');
+      window.location.replace(base.replace(/\/$/, '') + '/?lang=en');
+    })();
+  </script>
+</head>
+<body>
+  <p>Redirecting to the English integrated route UI (shade + cooling shelters)…</p>
+  <p>If not redirected, open <a href="http://127.0.0.1:8766/?lang=en">http://127.0.0.1:8766/?lang=en</a></p>
+</body>
+</html>

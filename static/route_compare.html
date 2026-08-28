@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>旧システムと最新システムのルート比較</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #fff;
+      --accent: #0d47a1;
+      --accent-hi: #1565c0;
+      --ok: #2e7d32;
+      --muted: #546e7a;
+      --border: #cfd8dc;
+      --old: #546e7a;
+      --new: #2e7d32;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: #263238;
+    }
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      padding: 12px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { margin: 0 0 4px; font-size: 1.1rem; font-weight: 700; }
+    header p { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    header nav { margin-top: 10px; font-size: 0.85rem; }
+    header nav a { color: var(--accent-hi); font-weight: 600; }
+    header nav a.current { color: #263238; text-decoration: none; pointer-events: none; }
+    .toolbar {
+      padding: 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar-section {
+      margin-top: 14px;
+      padding: 14px;
+      background: #f7fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .toolbar-section:first-child { margin-top: 0; }
+    .section-h { margin: 0 0 10px; font-size: 0.82rem; font-weight: 700; color: var(--accent); }
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 28rem; }
+    .field label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+    .field input, .field select {
+      width: 100%; min-height: 40px; padding: 6px 8px;
+      border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem;
+    }
+    .steps { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn, .btn-primary {
+      min-height: 40px; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+      font-size: 0.88rem; border: 1px solid var(--border); background: #fff;
+    }
+    .btn.active { outline: 2px solid var(--accent-hi); }
+    .btn-primary {
+      background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700;
+    }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .factor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    @media (min-width: 520px) { .factor-grid { grid-template-columns: repeat(4, 1fr); } }
+    .factor-grid label {
+      display: flex; align-items: center; gap: 8px; font-size: 0.88rem;
+      min-height: 40px; padding: 6px 8px; background: #fff;
+      border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    }
+    .status { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: #eceff1; font-size: 0.9rem; }
+    .status.ok { background: #e8f5e9; color: #1b5e20; }
+    .status.err { background: #ffebee; color: #b71c1c; }
+    table.compare {
+      width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px;
+      background: #fff;
+    }
+    table.compare th, table.compare td {
+      border: 1px solid var(--border); padding: 8px 10px; text-align: right;
+    }
+    table.compare th:first-child, table.compare td:first-child { text-align: left; }
+    table.compare th.old { color: var(--old); }
+    table.compare th.new { color: var(--new); }
+    .legend-row { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8rem; margin-top: 8px; }
+    .sw { display: inline-block; width: 22px; height: 6px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+    #map { flex: 1; min-height: 360px; height: 52vh; width: 100%; }
+    .foot { padding: 8px 12px; font-size: 0.7rem; color: var(--muted); background: var(--card); border-top: 1px solid var(--border); }
+    @media (min-width: 960px) {
+      .app {
+        display: grid;
+        grid-template-columns: 430px 1fr;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas: "head map" "tool map" "foot map";
+        max-width: none;
+      }
+      header { grid-area: head; }
+      .toolbar { grid-area: tool; overflow-y: auto; }
+      #map { grid-area: map; height: 100vh; min-height: 0; border-left: 1px solid var(--border); }
+      .foot { grid-area: foot; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>旧システムと最新システムのルート比較</h1>
+      <p>同じ起点・終点・日時で、軽量モデルのみ（旧）と樹木日陰を加算した最新ルートを重ねて表示します。</p>
+      <nav>
+        <a href="/route">旧システム</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/route/new">最新システム</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/route/compare" class="current">ルート比較</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/">日陰マップ</a>
+      </nav>
+    </header>
+
+    <div class="toolbar">
+      <div class="toolbar-section">
+        <h2 class="section-h">1. 地図で起点・終点</h2>
+        <div class="steps">
+          <button type="button" class="btn" id="btnOrig">① 起点を地図で指定</button>
+          <button type="button" class="btn" id="btnDest">② 終点を地図で指定</button>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="csDest">終点をクーリングシェルターから</label>
+          <select id="csDest"><option value="">— 読み込み中 —</option></select>
+        </div>
+        <p style="margin:8px 0 0;font-size:0.78rem;color:#546e7a;line-height:1.45;">水色の点＝CS（57件）。立ち寄り必須の比較は <a href="http://127.0.0.1:8766/compare">統合版 8766/compare</a>。</p>
+      </div>
+      <div class="toolbar-section">
+        <h2 class="section-h">2. 日付・時刻</h2>
+        <div class="date-row">
+          <div class="field">
+            <label for="routeDate">日付</label>
+            <input type="date" id="routeDate" value="2026-08-05" min="2026-06-01" max="2026-09-30" />
+          </div>
+          <div class="field">
+            <label for="hour">時刻（6〜18時）</label>
+            <select id="hour"></select>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:0.82rem;cursor:pointer;">
+          <input type="checkbox" id="f_overlay" /> 最新の日陰マップも重ねる
+        </label>
+      </div>
+      <div class="toolbar-section">
+        <h2 class="section-h">3. コスト要素（両システム共通）</h2>
+        <div class="factor-grid">
+          <label><input type="checkbox" id="f_dist" checked /> 距離</label>
+          <label><input type="checkbox" id="f_time" checked /> 時間</label>
+          <label><input type="checkbox" id="f_slope" checked /> 勾配</label>
+          <label><input type="checkbox" id="f_shadow" checked /> 日陰</label>
+        </div>
+        <div class="legend-row">
+          <span><span class="sw" style="background:#546e7a;"></span>旧（軽量のみ）</span>
+          <span><span class="sw" style="background:#2e7d32;"></span>最新（樹木加算）</span>
+        </div>
+      </div>
+      <div class="toolbar-section">
+        <button type="button" class="btn-primary" id="btnGo" disabled>③ 旧と最新を比較</button>
+        <button type="button" class="btn" id="btnReset" style="margin-left:8px;">地点をクリア</button>
+        <div class="status" id="status">① または ② を押してから、地図をタップしてください。</div>
+        <table class="compare" id="tbl" hidden>
+          <thead>
+            <tr><th></th><th class="old">旧</th><th class="new">最新</th><th>差（最新−旧）</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>距離</td><td id="cLenOld">—</td><td id="cLenNew">—</td><td id="cLenD">—</td></tr>
+            <tr><td>経路上の日陰率</td><td id="cShOld">—</td><td id="cShNew">—</td><td id="cShD">—</td></tr>
+            <tr><td>経路コスト</td><td id="cCostOld">—</td><td id="cCostNew">—</td><td id="cCostD">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="map" role="application" aria-label="地図"></div>
+    <footer class="foot">地図 © 国土地理院　API: <code>/api/route_latlon_compare</code></footer>
+  </div>
+  <script>
+    (function () {
+      const API_BASE = (window.location.protocol === 'file:')
+        ? (localStorage.getItem('nav_api_base') || 'http://127.0.0.1:8765')
+        : '';
+      function apiUrl(path) { return API_BASE + path; }
+
+      const hourSel = document.getElementById('hour');
+      for (let h = 6; h <= 18; h++) {
+        const o = document.createElement('option');
+        o.value = String(h);
+        o.textContent = h + ' 時';
+        if (h === 14) o.selected = true;
+        hourSel.appendChild(o);
+      }
+
+      const map = L.map('map', { zoomControl: true }).setView([36.5665, 136.6595], 14);
+      L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+        attribution: '<a href="https://maps.gsi.go.jp/copyright/ja.html" target="_blank" rel="noopener">国土地理院</a>',
+        maxZoom: 18, minZoom: 5
+      }).addTo(map);
+
+      let mode = null, orig = null, dest = null, mOrig = null, mDest = null;
+      let lineOld = null, lineNew = null, overlayLayer = null, csLayer = null, csFeatures = [];
+      const btnOrig = document.getElementById('btnOrig');
+      const btnDest = document.getElementById('btnDest');
+      const btnGo = document.getElementById('btnGo');
+      const status = document.getElementById('status');
+
+      function setStatus(text, cls) {
+        status.textContent = text;
+        status.className = 'status' + (cls ? ' ' + cls : '');
+      }
+      function updateGo() { btnGo.disabled = !(orig && dest); }
+      function collectFactors() {
+        return {
+          use_distance: document.getElementById('f_dist').checked,
+          use_time: document.getElementById('f_time').checked,
+          use_slope: document.getElementById('f_slope').checked,
+          use_shadow: document.getElementById('f_shadow').checked,
+          weight_distance: 1, weight_time: 1, weight_slope: 3, weight_shadow: 4,
+          walk_speed_m_s: 1.2
+        };
+      }
+      function fmtM(v) { return Math.round(v).toLocaleString('ja-JP') + ' m'; }
+      function fmtPct(v) { return (v * 100).toFixed(1) + ' %'; }
+      function fmtNum(v) { return v.toFixed(2); }
+      function signed(fmt, v) { return (v > 0 ? '+' : '') + fmt(v); }
+      function latlngsOf(route) {
+        return (route.coordinates_latlon || []).map(function (p) { return [p[0], p[1]]; });
+      }
+
+      function setDest(lat, lon, name) {
+        dest = { lat: lat, lon: lon };
+        if (mDest) map.removeLayer(mDest);
+        mDest = L.marker([lat, lon], { title: '終点' }).addTo(map).bindPopup(name || '終点');
+        updateGo();
+      }
+      async function loadCoolingShelters() {
+        var r = await fetch(apiUrl('/api/cooling-shelters'));
+        var j = await r.json();
+        if (!r.ok) throw new Error(j.detail || 'CS load failed');
+        csFeatures = j.features || [];
+        var sel = document.getElementById('csDest');
+        sel.innerHTML = '<option value="">— 終点 CS —</option>';
+        if (csLayer) map.removeLayer(csLayer);
+        csLayer = L.layerGroup();
+        csFeatures.forEach(function (feat) {
+          var p = feat.properties || {};
+          var c = feat.geometry.coordinates;
+          var o = document.createElement('option');
+          o.value = String(p.cs_id != null ? p.cs_id : '');
+          o.textContent = p.cs_name || 'CS';
+          sel.appendChild(o);
+          var m = L.circleMarker([c[1], c[0]], {
+            radius: 5, color: '#01579b', fillColor: '#4fc3f7', fillOpacity: 0.8, weight: 1
+          });
+          if (p.cs_name) m.bindTooltip(String(p.cs_name), { direction: 'top', offset: [0, -6], opacity: 0.9 });
+          m.on('click', function () {
+            sel.value = String(p.cs_id);
+            setDest(c[1], c[0], p.cs_name);
+            setStatus('終点: CS「' + (p.cs_name || '') + '」', 'ok');
+          });
+          csLayer.addLayer(m);
+        });
+        csLayer.addTo(map);
+      }
+      document.getElementById('csDest').onchange = function () {
+        if (this.value === '') return;
+        var feat = null;
+        for (var i = 0; i < csFeatures.length; i++) {
+          if (String((csFeatures[i].properties || {}).cs_id) === String(this.value)) { feat = csFeatures[i]; break; }
+        }
+        if (!feat) return;
+        var c = feat.geometry.coordinates;
+        setDest(c[1], c[0], (feat.properties || {}).cs_name);
+      };
+
+      btnOrig.onclick = function () {
+        mode = (mode === 'orig') ? null : 'orig';
+        btnOrig.classList.toggle('active', mode === 'orig');
+        btnDest.classList.remove('active');
+      };
+      btnDest.onclick = function () {
+        mode = (mode === 'dest') ? null : 'dest';
+        btnDest.classList.toggle('active', mode === 'dest');
+        btnOrig.classList.remove('active');
+      };
+      map.on('click', function (e) {
+        if (!mode) return;
+        var pt = { lat: e.latlng.lat, lon: e.latlng.lng };
+        if (mode === 'orig') {
+          orig = pt;
+          if (mOrig) map.removeLayer(mOrig);
+          mOrig = L.marker([pt.lat, pt.lon], { title: '起点' }).addTo(map).bindPopup('起点');
+        } else {
+          dest = pt;
+          if (mDest) map.removeLayer(mDest);
+          mDest = L.marker([pt.lat, pt.lon], { title: '終点' }).addTo(map).bindPopup('終点');
+          var csSel = document.getElementById('csDest');
+          if (csSel) csSel.value = '';
+        }
+        mode = null;
+        btnOrig.classList.remove('active');
+        btnDest.classList.remove('active');
+        updateGo();
+      });
+      document.getElementById('btnReset').onclick = function () {
+        orig = dest = null;
+        if (mOrig) map.removeLayer(mOrig);
+        if (mDest) map.removeLayer(mDest);
+        if (lineOld) map.removeLayer(lineOld);
+        if (lineNew) map.removeLayer(lineNew);
+        if (overlayLayer) map.removeLayer(overlayLayer);
+        mOrig = mDest = lineOld = lineNew = overlayLayer = null;
+        document.getElementById('tbl').hidden = true;
+        setStatus('地点をクリアしました。');
+        updateGo();
+      };
+
+      async function maybeOverlay() {
+        if (overlayLayer) { map.removeLayer(overlayLayer); overlayLayer = null; }
+        if (!document.getElementById('f_overlay').checked) return;
+        var d = document.getElementById('routeDate').value;
+        var h = parseInt(hourSel.value, 10);
+        var qs = 'route_date=' + encodeURIComponent(d) + '&hour=' + h + '&year=2026&include_tree_shade=true';
+        var rq = await fetch(apiUrl('/api/shadow/query?' + qs));
+        var j = await rq.json();
+        if (!rq.ok) return;
+        overlayLayer = L.imageOverlay(apiUrl('/api/shadow/overlay.png?' + qs), j.bounds_latlon, { opacity: 0.45 }).addTo(map);
+      }
+
+      btnGo.onclick = async function () {
+        if (!orig || !dest) return;
+        var factors = collectFactors();
+        if (!factors.use_distance && !factors.use_time && !factors.use_slope && !factors.use_shadow) {
+          setStatus('距離・時間・勾配・日陰のうち、少なくとも1つにチェックを入れてください。', 'err');
+          return;
+        }
+        btnGo.disabled = true;
+        setStatus('旧と最新のルートを計算しています…（2回分のため少し時間がかかります）');
+        try {
+          await maybeOverlay();
+          var r = await fetch(apiUrl('/api/route_latlon_compare'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orig_lat: orig.lat, orig_lon: orig.lon,
+              dest_lat: dest.lat, dest_lon: dest.lon,
+              route_date: document.getElementById('routeDate').value,
+              hour: parseInt(hourSel.value, 10),
+              year: 2026,
+              factors: factors
+            })
+          });
+          var j = await r.json();
+          if (!r.ok) {
+            setStatus('エラー: ' + (j.detail || JSON.stringify(j)), 'err');
+            return;
+          }
+          if (lineOld) map.removeLayer(lineOld);
+          if (lineNew) map.removeLayer(lineNew);
+          var oldLl = latlngsOf(j.old);
+          var newLl = latlngsOf(j.new);
+          lineOld = L.polyline(oldLl, { color: '#546e7a', weight: 8, opacity: 0.85, dashArray: '10 8' }).addTo(map);
+          lineNew = L.polyline(newLl, { color: '#2e7d32', weight: 5, opacity: 0.95 }).addTo(map);
+          var g = L.featureGroup([lineOld, lineNew]);
+          map.fitBounds(g.getBounds(), { padding: [36, 36], maxZoom: 17 });
+          var dlt = j.delta || {};
+          document.getElementById('cLenOld').textContent = fmtM(dlt.length_m_old);
+          document.getElementById('cLenNew').textContent = fmtM(dlt.length_m_new);
+          document.getElementById('cLenD').textContent = signed(fmtM, dlt.length_m_delta);
+          document.getElementById('cShOld').textContent = fmtPct(dlt.shade_frac_old);
+          document.getElementById('cShNew').textContent = fmtPct(dlt.shade_frac_new);
+          document.getElementById('cShD').textContent = signed(fmtPct, dlt.shade_frac_delta);
+          document.getElementById('cCostOld').textContent = fmtNum(dlt.cost_old);
+          document.getElementById('cCostNew').textContent = fmtNum(dlt.cost_new);
+          document.getElementById('cCostD').textContent = signed(fmtNum, dlt.cost_delta);
+          document.getElementById('tbl').hidden = false;
+          setStatus(dlt.routes_identical
+            ? '経路は同一です。日陰率の差は、同じ道を樹木日陰込みで評価した値です。'
+            : '経路が分かれました。灰破線＝旧、緑＝最新。', 'ok');
+        } catch (e) {
+          setStatus('通信に失敗しました。uvicorn nav_app:app --port 8765 を確認してください。', 'err');
+        } finally {
+          updateGo();
+        }
+      };
+
+      try {
+        fetch(apiUrl('/api/health')).then(function (r) {
+          if (!r.ok) { setStatus('API に接続できません。', 'err'); return; }
+          return loadCoolingShelters().then(function () {
+            setStatus('サーバ接続 OK。CS 57件を表示しました。① または ② を押してから地図をタップしてください。', 'ok');
+          });
+        }).catch(function () { setStatus('API に接続できません。', 'err'); });
+      } catch (e) { setStatus('API に接続できません。', 'err'); }
+    })();
+  </script>
+</body>
+</html>

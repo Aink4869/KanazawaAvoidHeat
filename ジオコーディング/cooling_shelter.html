@@ -1,0 +1,2134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>金沢クーリングシェルター誘導システム</title>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#0b1020;
+  --fg:#f2f5ff;
+  --muted:#9aa3b2;
+  --panel:#0c132a;
+  --border:#1f2a4d;
+  --accent:#2ea0ff;
+  --cs:#2ea0ff;
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  height:100%;
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;
+}
+
+/* ===== Header ===== */
+.appbar{
+  position:sticky;
+  top:0;
+  z-index:5;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(90deg,#0b1020,#0d1634);
+}
+
+.brand h1{
+  margin:0;
+  font-size:18px;
+}
+
+.brand .sub{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.controls{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.input{
+  background:#0b1430;
+  color:var(--fg);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px 10px;
+  min-width:220px;
+}
+
+.chk{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  font-size:14px;
+}
+
+.btn{
+  background:var(--accent);
+  border:1px solid #1b5fa8;
+  color:#061222;
+  font-weight:600;
+  border-radius:10px;
+  padding:8px 12px;
+  cursor:pointer;
+  border:none;
+}
+
+.btn.ghost{
+  background:#0b1430;
+  color:#cfe3ff;
+}
+
+.btn:hover{
+  opacity:0.9;
+}
+
+/* ===== Layout ===== */
+.main{
+  display:grid;
+  grid-template-columns:360px 1fr;
+  height:calc(100vh - 66px);
+}
+
+.panel{
+  border-right:1px solid var(--border);
+  background:var(--panel);
+  padding:12px;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+
+.panel h2{
+  margin:0 0 12px 0;
+  font-size:16px;
+  font-weight:700;
+  color:var(--accent);
+  padding-bottom:8px;
+  border-bottom:1px solid var(--border);
+}
+
+.small{
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* ===== List ===== */
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:50vh;
+  overflow:auto;
+}
+
+.item{
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#0e1736;
+  padding:8px;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+
+.item:hover{
+  background:#121a3e;
+  border-color:var(--accent);
+}
+
+.item.active{
+  background:#0d1a3a;
+  border-color:var(--accent);
+}
+
+.item .name{
+  font-weight:700;
+}
+
+.item .addr{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:2px;
+}
+
+.badge{
+  padding:2px 6px;
+  border-radius:999px;
+  font-size:12px;
+  border:1px solid var(--border);
+  background:#0b1430;
+  display:inline-block;
+  margin-top:4px;
+}
+
+/* ===== Route panel ===== */
+.route-panel{
+  margin-top:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:linear-gradient(135deg, #0e1736, #0d1a3a);
+  padding:16px;
+  display:none;
+}
+
+.route-panel-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.route-panel-title{
+  font-size:16px;
+  font-weight:700;
+  color:var(--accent);
+}
+
+.route-clear-btn{
+  background:#1a1f3a;
+  border:1px solid var(--border);
+  color:var(--muted);
+  border-radius:6px;
+  padding:4px 10px;
+  font-size:11px;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+
+.route-clear-btn:hover{
+  background:#252a4a;
+  color:var(--fg);
+  border-color:var(--accent);
+}
+
+.route-info-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+}
+
+.route-info-item{
+  background:#0b1430;
+  border:1px solid #1b5fa8;
+  border-radius:8px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.route-info-label{
+  font-size:11px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+
+.route-info-value{
+  font-size:18px;
+  font-weight:700;
+  color:var(--accent);
+}
+
+.route-info-sub{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:2px;
+}
+
+/* ===== Map ===== */
+.mapwrap{
+  position:relative;
+}
+
+#map{
+  position:absolute;
+  inset:0;
+  background:#081020;
+}
+
+/* ===== Footer ===== */
+.footer{
+  border-top:1px solid var(--border);
+  padding:8px 12px;
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+}
+
+/* ===== Responsive ===== */
+@media (max-width:900px){
+  .main{
+    grid-template-columns:1fr;
+  }
+  .panel{
+    height:42vh;
+    order:2;
+  }
+  .mapwrap{
+    height:58vh;
+  }
+}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <div class="brand">
+    <h1>金沢クーリングシェルター誘導システム</h1>
+    <div class="sub">CSマップ（57件）</div>
+  </div>
+  <div class="controls">
+    <input class="input" type="text" id="searchInput" placeholder="名称・住所で検索">
+    <label class="chk"><input type="checkbox" id="csFilter" checked> CS</label>
+    <button class="btn" id="nearestBtn">最寄り</button>
+    <button class="btn" id="reachableAreaBtn">到達範囲</button>
+  </div>
+</header>
+
+<main class="main">
+  <aside class="panel">
+    <h2>検索結果</h2>
+    <div class="list" id="listContainer"></div>
+    <div class="route-panel" id="routePanel" style="display:none;">
+      <div class="route-panel-header">
+        <div class="route-panel-title">ルート情報</div>
+        <button class="route-clear-btn" id="clearRouteBtn">クリア</button>
+      </div>
+      <div class="route-info-grid">
+        <div class="route-info-item">
+          <div class="route-info-label">距離</div>
+          <div class="route-info-value" id="distanceValue">-</div>
+          <div class="route-info-sub" id="distanceSub">計算中...</div>
+        </div>
+        <div class="route-info-item">
+          <div class="route-info-label">所要時間</div>
+          <div class="route-info-value" id="timeValue">-</div>
+          <div class="route-info-sub" id="timeSub">徒歩</div>
+        </div>
+        <div class="route-info-item">
+          <div class="route-info-label">勾配情報</div>
+          <div class="route-info-value" id="gradientValue">-</div>
+          <div class="route-info-sub" id="gradientSub">計算中...</div>
+        </div>
+      </div>
+    </div>
+    <div class="small" style="margin-top:12px; padding:10px; background:#0b1430; border-radius:8px; border:1px solid var(--border);">
+      <strong style="color:var(--accent);">使い方</strong><br>
+      <span style="display:block; margin-top:6px;">
+        📍 マーカーまたはリストをクリックでルート表示<br>
+        🔍 検索バーで施設を検索<br>
+        🎯 最寄りボタンで最寄りの施設を検索<br>
+        🗺️ 到達範囲ボタンで徒歩で行ける範囲を表示<br>
+        🗑️ クリアボタンでルートを消去
+      </span>
+      <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:11px; color:var(--muted);">
+        現在地: 香林坊（仮設定）<br>
+        <span style="color:#ffaa00; margin-top:4px; display:block;">
+          ⚠️ 到達範囲機能を使用するには、OpenRouteServiceの無料APIキーが必要です<br>
+          <a href="https://openrouteservice.org/dev/#/signup" target="_blank" style="color:#2ea0ff;">APIキーを取得</a>
+        </span>
+      </div>
+    </div>
+  </aside>
+
+  <section class="mapwrap">
+    <div id="map"></div>
+  </section>
+</main>
+
+<footer class="footer">
+  UI Template for Cooling Shelter Map
+</footer>
+
+<!-- GeoJSONデータ -->
+<script id="CS_GEOJSON" type="application/json">
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.657074,
+          36.561703
+        ]
+      },
+      "properties": {
+        "cs_id": 1,
+        "cs_name": "市役所第一本庁舎",
+        "address": "石川県金沢市広坂1丁目1番1号",
+        "open_time": "月～金 9:00～17:45",
+        "capacity": 12,
+        "rest_space": null,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.656891,
+          36.559978
+        ]
+      },
+      "properties": {
+        "cs_id": 2,
+        "cs_name": "市役所第二本庁舎",
+        "address": "石川県金沢市柿木畠1番1号",
+        "open_time": "月～金 9:00～17:45",
+        "capacity": 12,
+        "rest_space": null,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.63504,
+          36.590153
+        ]
+      },
+      "properties": {
+        "cs_id": 3,
+        "cs_name": "駅西福祉健康センター",
+        "address": "石川県金沢市西念3丁目4番25号",
+        "open_time": "月～金 8:30～17:15",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.648804,
+          36.544186
+        ]
+      },
+      "properties": {
+        "cs_id": 4,
+        "cs_name": "泉野福祉健康センター",
+        "address": "石川県金沢市泉が丘1丁目2番22号",
+        "open_time": "月～金 8:30～17:15",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.666794,
+          36.58168
+        ]
+      },
+      "properties": {
+        "cs_id": 5,
+        "cs_name": "元町福祉健康センター",
+        "address": "石川県金沢市元町1丁目12番12号",
+        "open_time": "月～金 8:30～17:15",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.661316,
+          36.568535
+        ]
+      },
+      "properties": {
+        "cs_id": 6,
+        "cs_name": "金沢健康プラザ大手町東館",
+        "address": "石川県金沢市大手町3番21号",
+        "open_time": "月～日 9:00～17:00",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.604202,
+          36.594593
+        ]
+      },
+      "properties": {
+        "cs_id": 7,
+        "cs_name": "金沢海みらい図書館",
+        "address": "石川県金沢市寺中町イ1番地1",
+        "open_time": "月火木金 10:00～19:00／土日祝 10:00～17:00",
+        "capacity": 13,
+        "rest_space": null,
+        "notes": "7/19～8/31は9:30開館・水曜祝日は開館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.649673,
+          36.543987
+        ]
+      },
+      "properties": {
+        "cs_id": 8,
+        "cs_name": "泉野図書館",
+        "address": "石川県金沢市泉野町4丁目22番22号",
+        "open_time": "月水木金 10:00～19:00／土日祝 10:00～17:00",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": "7/19～8/31は9:30開館・火曜祝日は開館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.670303,
+          36.589951
+        ]
+      },
+      "properties": {
+        "cs_id": 9,
+        "cs_name": "城北児童会館",
+        "address": "石川県金沢市小坂町西8-11",
+        "open_time": "火～日 9:30～18:00",
+        "capacity": 12,
+        "rest_space": null,
+        "notes": "月・祝休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.651932,
+          36.56123
+        ]
+      },
+      "properties": {
+        "cs_id": 10,
+        "cs_name": "金沢学生のまち市民交流館",
+        "address": "石川県金沢市片町2丁目5番17号",
+        "open_time": "火～日 10:00～22:00",
+        "capacity": 8,
+        "rest_space": null,
+        "notes": "月曜祝日は開館・直後の平日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.656036,
+          36.571659
+        ]
+      },
+      "properties": {
+        "cs_id": 11,
+        "cs_name": "近江町交流プラザ",
+        "address": "石川県金沢市青草町88番地",
+        "open_time": "月火木～日 10:00～18:00",
+        "capacity": 10,
+        "rest_space": null,
+        "notes": "水曜祝日は開館・直後の平日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659485,
+          36.597721
+        ]
+      },
+      "properties": {
+        "cs_id": 12,
+        "cs_name": "金沢プール",
+        "address": "石川県金沢市磯部町ハ55番地",
+        "open_time": "9:00～21:00",
+        "capacity": 16,
+        "rest_space": null,
+        "notes": "一般開放がない日(7/5・6・14・26・27・29、8/18・25、9/1・8・16・22・29)除く"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.679016,
+          36.577068
+        ]
+      },
+      "properties": {
+        "cs_id": 13,
+        "cs_name": "鳴和台市民体育会館",
+        "address": "石川県金沢市鳴和台285番地",
+        "open_time": "月～日 9:00～21:00",
+        "capacity": 23,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.625351,
+          36.594818
+        ]
+      },
+      "properties": {
+        "cs_id": 14,
+        "cs_name": "石川県庁行政庁舎（19階展望ロビー）",
+        "address": "石川県金沢市鞍月1丁目1番地",
+        "open_time": "月～日 10:00～20:00",
+        "capacity": 64,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.680328,
+          36.548672
+        ]
+      },
+      "properties": {
+        "cs_id": 15,
+        "cs_name": "石川県立図書館",
+        "address": "石川県金沢市小立野2丁目43番1号",
+        "open_time": "火～日 閲覧9:00～19:00／文化交流9:00～21:00",
+        "capacity": 500,
+        "rest_space": null,
+        "notes": "利用者含む"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.64537,
+          36.567348
+        ]
+      },
+      "properties": {
+        "cs_id": 16,
+        "cs_name": "長土塀青少年交流センター",
+        "address": "石川県金沢市長町3丁目3番3号",
+        "open_time": "火～日 9:00～21:00",
+        "capacity": 12,
+        "rest_space": null,
+        "notes": "月曜祝日は開館・翌日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.618225,
+          36.562675
+        ]
+      },
+      "properties": {
+        "cs_id": 17,
+        "cs_name": "西部市民憩いの家",
+        "address": "石川県金沢市東力町ハ256番地",
+        "open_time": "月火木土 9:00～21:00／日祝 9:00～19:00",
+        "capacity": 8,
+        "rest_space": null,
+        "notes": "水曜休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.599548,
+          36.608147
+        ]
+      },
+      "properties": {
+        "cs_id": 18,
+        "cs_name": "松寿荘",
+        "address": "石川県金沢市金石北3丁目3番33号",
+        "open_time": "9:00～17:00",
+        "capacity": 5,
+        "rest_space": null,
+        "notes": "特定日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.629929,
+          36.509651
+        ]
+      },
+      "properties": {
+        "cs_id": 19,
+        "cs_name": "鶴寿園",
+        "address": "石川県金沢市額谷町ヌ1",
+        "open_time": "9:00～16:00",
+        "capacity": 5,
+        "rest_space": null,
+        "notes": "特定日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.64798,
+          36.552574
+        ]
+      },
+      "properties": {
+        "cs_id": 20,
+        "cs_name": "金沢未来のまち創造館",
+        "address": "石川県金沢市野町3丁目11-1",
+        "open_time": "9:00～21:00",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.621658,
+          36.629303
+        ]
+      },
+      "properties": {
+        "cs_id": 21,
+        "cs_name": "ものづくり会館",
+        "address": "石川県金沢市粟崎町4丁目80番地1",
+        "open_time": "9:00～21:00",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.574219,
+          36.572453
+        ]
+      },
+      "properties": {
+        "cs_id": 22,
+        "cs_name": "農業センター",
+        "address": "石川県金沢市下安原町東1471番地",
+        "open_time": "月～金 8:30～17:00",
+        "capacity": 4,
+        "rest_space": null,
+        "notes": "土日祝休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659103,
+          36.575081
+        ]
+      },
+      "properties": {
+        "cs_id": 23,
+        "cs_name": "中央公民館彦三館",
+        "address": "石川県金沢市彦三町1丁目15番5号",
+        "open_time": "月～土 9:00～21:00／日 9:00～17:00",
+        "capacity": 20,
+        "rest_space": null,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.641266,
+          36.538326
+        ]
+      },
+      "properties": {
+        "cs_id": 24,
+        "cs_name": "教育プラザ富樫",
+        "address": "石川県金沢市富樫3丁目10番1号",
+        "open_time": "月～日 9:00～21:00",
+        "capacity": 15,
+        "rest_space": "1号館1階スペース",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.735275,
+          36.542637
+        ]
+      },
+      "properties": {
+        "cs_id": 25,
+        "cs_name": "戸室リサイクルプラザ",
+        "address": "石川県金沢市戸室新保ハ604",
+        "open_time": "火～日 9:00～17:00",
+        "capacity": 12,
+        "rest_space": null,
+        "notes": "月曜祝日は開館・直後の平日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.646622,
+          36.583538
+        ]
+      },
+      "properties": {
+        "cs_id": 26,
+        "cs_name": "金沢勤労者プラザ",
+        "address": "石川県金沢市北安江3-2-20",
+        "open_time": "月～日 9:00～17:00",
+        "capacity": 10,
+        "rest_space": null,
+        "notes": "第1火曜・お盆休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.689896,
+          36.567444
+        ]
+      },
+      "properties": {
+        "cs_id": 27,
+        "cs_name": "千寿閣",
+        "address": "石川県金沢市東長江町辺2番1",
+        "open_time": "月火木～日 9:00～17:00",
+        "capacity": 15,
+        "rest_space": "1階ロビー",
+        "notes": "飲食不可"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.653717,
+          36.566273
+        ]
+      },
+      "properties": {
+        "cs_id": 28,
+        "cs_name": "金沢中央観光案内所",
+        "address": "石川県金沢市南町4-1",
+        "open_time": "月～日 10:00～21:00",
+        "capacity": 6,
+        "rest_space": null,
+        "notes": "金沢ニューグランドビル1階"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.612411,
+          36.608849
+        ]
+      },
+      "properties": {
+        "cs_id": 29,
+        "cs_name": "金沢港クルーズターミナル",
+        "address": "石川県金沢市無量寺町リ-65",
+        "open_time": "月～日 9:00～21:00",
+        "capacity": 15,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.663574,
+          36.546474
+        ]
+      },
+      "properties": {
+        "cs_id": 30,
+        "cs_name": "いしかわ子ども交流センター",
+        "address": "石川県金沢市法島町11-8",
+        "open_time": "火～日 9:00～17:00",
+        "capacity": 12,
+        "rest_space": null,
+        "notes": "館内飲食不可（水分補給のみ可）・月曜祝日は開館翌日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659271,
+          36.56575
+        ]
+      },
+      "properties": {
+        "cs_id": 31,
+        "cs_name": "金沢城公園 鶴の丸休憩館",
+        "address": "石川県金沢市丸の内1番1号",
+        "open_time": "月～日 7:00～18:00",
+        "capacity": 30,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659271,
+          36.56575
+        ]
+      },
+      "properties": {
+        "cs_id": 32,
+        "cs_name": "金沢城公園 休憩所「玉泉庵」",
+        "address": "石川県金沢市丸の内1番1号",
+        "open_time": "月～日 7:00～18:00",
+        "capacity": 10,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659271,
+          36.56575
+        ]
+      },
+      "properties": {
+        "cs_id": 33,
+        "cs_name": "金沢城公園 石川門入口休憩所",
+        "address": "石川県金沢市丸の内1番1号",
+        "open_time": "月～日 7:00～18:00",
+        "capacity": 12,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.619827,
+          36.595501
+        ]
+      },
+      "properties": {
+        "cs_id": 34,
+        "cs_name": "いしかわエコハウス",
+        "address": "石川県金沢市鞍月2丁目1番地",
+        "open_time": "9:00～17:00",
+        "capacity": 5,
+        "rest_space": null,
+        "notes": "見学者優先"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.651917,
+          36.576313
+        ]
+      },
+      "properties": {
+        "cs_id": 35,
+        "cs_name": "金沢福祉用具情報プラザ",
+        "address": "石川県金沢市本町1丁目10番1号",
+        "open_time": "月水木金土日 10:00～19:00",
+        "capacity": 10,
+        "rest_space": null,
+        "notes": "火曜祝日は開館・翌日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.648209,
+          36.557129
+        ]
+      },
+      "properties": {
+        "cs_id": 36,
+        "cs_name": "にし茶屋観光駐車場",
+        "address": "石川県金沢市野町2丁目25番1号",
+        "open_time": "月～日 7:30～22:00",
+        "capacity": 5,
+        "rest_space": null,
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.657074,
+          36.560333
+        ]
+      },
+      "properties": {
+        "cs_id": 37,
+        "cs_name": "金沢21世紀美術館",
+        "address": "石川県金沢市広坂1-2-1",
+        "open_time": "期間中無休 9:00～22:00",
+        "capacity": 30,
+        "rest_space": null,
+        "notes": "館内飲食不可（交流ゾーンのみ水分補給可）"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.616257,
+          36.514839
+        ]
+      },
+      "properties": {
+        "cs_id": 38,
+        "cs_name": "ウエルシア金沢額新保店",
+        "address": "石川県金沢市額新保3-188",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 4,
+        "rest_space": "ウエルカフェ",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601181,
+          36.557808
+        ]
+      },
+      "properties": {
+        "cs_id": 39,
+        "cs_name": "ウエルシア金沢新保本店",
+        "address": "石川県金沢市新保本3-152-1",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 12,
+        "rest_space": "ウエルカフェ",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601181,
+          36.557808
+        ]
+      },
+      "properties": {
+        "cs_id": 40,
+        "cs_name": "ウエルシア薬局金沢新保本店",
+        "address": "石川県金沢市新保本3-152-1",
+        "open_time": "月～金 10:00～13:00／14:00～17:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.632111,
+          36.604122
+        ]
+      },
+      "properties": {
+        "cs_id": 41,
+        "cs_name": "ウエルシア金沢直江店",
+        "address": "石川県金沢市直江南1-44",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 12,
+        "rest_space": "ウエルカフェ",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.632111,
+          36.604122
+        ]
+      },
+      "properties": {
+        "cs_id": 42,
+        "cs_name": "ウエルシア薬局金沢直江店",
+        "address": "石川県金沢市直江南1-44",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601715,
+          36.603008
+        ]
+      },
+      "properties": {
+        "cs_id": 43,
+        "cs_name": "ウエルシア金沢木曳野店",
+        "address": "石川県金沢市木曳野4-223",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 12,
+        "rest_space": "ウエルカフェ",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601715,
+          36.603008
+        ]
+      },
+      "properties": {
+        "cs_id": 44,
+        "cs_name": "ウエルシア薬局金沢木曳野店",
+        "address": "石川県金沢市木曳野4-223",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.670486,
+          36.597324
+        ]
+      },
+      "properties": {
+        "cs_id": 45,
+        "cs_name": "ウエルシア薬局金沢三池店",
+        "address": "石川県金沢市三池栄町312",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.617523,
+          36.50021
+        ]
+      },
+      "properties": {
+        "cs_id": 46,
+        "cs_name": "ウエルシア薬局金沢四十万店",
+        "address": "石川県金沢市四十万4-228",
+        "open_time": "月～金 10:00～14:00／15:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.62262,
+          36.57806
+        ]
+      },
+      "properties": {
+        "cs_id": 47,
+        "cs_name": "ウエルシア薬局金沢出雲町店",
+        "address": "石川県金沢市出雲町イ222",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.674484,
+          36.538029
+        ]
+      },
+      "properties": {
+        "cs_id": 48,
+        "cs_name": "ウエルシア薬局金沢大桑店",
+        "address": "石川県金沢市大桑2-47",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.686844,
+          36.520733
+        ]
+      },
+      "properties": {
+        "cs_id": 49,
+        "cs_name": "ウエルシア薬局金沢末町店",
+        "address": "石川県金沢市末町16-12-1",
+        "open_time": "月～金 10:00～14:00／15:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.635803,
+          36.538013
+        ]
+      },
+      "properties": {
+        "cs_id": 50,
+        "cs_name": "ウエルシア薬局金沢有松店",
+        "address": "石川県金沢市有松4-13-13",
+        "open_time": "月～金 10:00～14:00／15:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.68988,
+          36.551395
+        ]
+      },
+      "properties": {
+        "cs_id": 51,
+        "cs_name": "イオンもりの里店",
+        "address": "石川県金沢市もりの里1-70",
+        "open_time": "月～日 9:00～22:00",
+        "capacity": 30,
+        "rest_space": "1階ふれあい広場",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.61702,
+          36.580887
+        ]
+      },
+      "properties": {
+        "cs_id": 52,
+        "cs_name": "イオンタウン金沢示野",
+        "address": "石川県金沢市戸板西1-55",
+        "open_time": "月～日 10:00～21:00",
+        "capacity": 36,
+        "rest_space": "マックスバリュ棟共用部通路",
+        "notes": "3人掛けベンチ12台"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.654037,
+          36.567768
+        ]
+      },
+      "properties": {
+        "cs_id": 53,
+        "cs_name": "明治安田ヴィレッジ金沢",
+        "address": "石川県金沢市南町4-47",
+        "open_time": "月～日 10:30～17:00",
+        "capacity": 20,
+        "rest_space": "多目的スペース",
+        "notes": "イベント開催日除く・食事不可・駐車場なし"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.641708,
+          36.558208
+        ]
+      },
+      "properties": {
+        "cs_id": 54,
+        "cs_name": "あるかふぇ",
+        "address": "石川県金沢市増泉1-20-20",
+        "open_time": "月～金 8:30～17:00",
+        "capacity": 10,
+        "rest_space": "コミュニティースペース",
+        "notes": "祝日等除く・11:30～13:30食事可"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.649506,
+          36.57856
+        ]
+      },
+      "properties": {
+        "cs_id": 55,
+        "cs_name": "金沢フォーラス",
+        "address": "石川県金沢市堀川新町3-1",
+        "open_time": "月～日 10:00～20:00",
+        "capacity": 50,
+        "rest_space": "各フロアのイス設置スペース",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.653381,
+          36.562077
+        ]
+      },
+      "properties": {
+        "cs_id": 56,
+        "cs_name": "クラソ・プレイス香林坊（Museum Shop & Café KAMU kanazawa）",
+        "address": "石川県金沢市香林坊2-1-1",
+        "open_time": "月～日 10:00～20:00",
+        "capacity": 20,
+        "rest_space": "Museum Shop & Café オープンスペース",
+        "notes": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.617264,
+          36.566669
+        ]
+      },
+      "properties": {
+        "cs_id": 57,
+        "cs_name": "オレンジハートランドリー間明町店",
+        "address": "石川県金沢市間明町1-240",
+        "open_time": "月～金 8:45～17:45",
+        "capacity": 4,
+        "rest_space": "ランドリー店内",
+        "notes": null
+      }
+    }
+  ]
+}
+</script>
+
+<script>
+// DOM読み込み完了後に実行
+window.addEventListener("DOMContentLoaded", () => {
+  // データ読み込み
+  const geojson = JSON.parse(document.getElementById("CS_GEOJSON").textContent);
+  let map, markers = [], layers = [];
+  
+  // 現在地を香林坊に固定（仮設定）
+  const KORINBO_LAT = 36.562077;
+  const KORINBO_LNG = 136.653381;
+  let currentLocation = { lat: KORINBO_LAT, lng: KORINBO_LNG };
+  let currentLocationMarker = null;
+  let selectedFeature = null;
+  let routeLine = null;
+  let isochroneLayers = [];
+
+  // 地図初期化
+  try {
+    map = L.map("map").setView([KORINBO_LAT, KORINBO_LNG], 14);
+
+    // ダークテーマのタイルレイヤー（オプション）
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
+
+    // 地図サイズを正しく計算
+    setTimeout(() => {
+      if (map) {
+        map.invalidateSize();
+      }
+    }, 100);
+
+    // 現在地マーカー（香林坊）を表示
+    currentLocationMarker = L.marker([KORINBO_LAT, KORINBO_LNG], {
+      icon: L.divIcon({
+        className: "current-location-marker",
+        html: '<div style="width:24px;height:24px;border-radius:50%;background:#ff4444;border:3px solid white;box-shadow:0 0 12px rgba(255,68,68,0.6);"></div>',
+        iconSize: [24, 24]
+      })
+    }).addTo(map);
+    currentLocationMarker.bindPopup("現在地（香林坊）").openPopup();
+  } catch (error) {
+    console.error("地図初期化エラー:", error);
+    alert("地図の初期化に失敗しました");
+  }
+
+  // マーカー作成
+  function createMarker(feature) {
+    const [lon, lat] = feature.geometry.coordinates;
+    const marker = L.circleMarker([lat, lon], {
+      radius: 6,
+      color: "#2ea0ff",
+      weight: 2,
+      fillOpacity: 0.8
+    });
+
+    const p = feature.properties;
+    marker.bindPopup(`
+      <strong>${p.cs_name || "-"}</strong><br>
+      ${p.address || "-"}<br>
+      時間：${p.open_time || "-"}<br>
+      定員：${p.capacity || "-"}<br>
+      備考：${p.notes || "-"}
+    `);
+
+    marker.on("click", () => {
+      highlightFeature(feature);
+      scrollToItem(feature);
+      selectedFeature = feature;
+      
+      // 香林坊からルートを表示
+      const [lon, lat] = feature.geometry.coordinates;
+      drawWalkingRoute(KORINBO_LAT, KORINBO_LNG, lat, lon);
+    });
+
+    return marker;
+  }
+
+  // フィーチャーをハイライト
+  function highlightFeature(feature) {
+    // 既存のハイライトを解除
+    document.querySelectorAll(".item").forEach(item => {
+      item.classList.remove("active");
+    });
+
+    // リスト項目をハイライト
+    const item = document.querySelector(`[data-id="${feature.properties.cs_id}"]`);
+    if (item) {
+      item.classList.add("active");
+      item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    selectedFeature = feature;
+  }
+
+  // リスト項目までスクロール
+  function scrollToItem(feature) {
+    const item = document.querySelector(`[data-id="${feature.properties.cs_id}"]`);
+    if (item) {
+      item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  // リスト表示
+  function renderList(features) {
+    const container = document.getElementById("listContainer");
+    container.innerHTML = "";
+
+    features.forEach(feature => {
+      const p = feature.properties;
+      const item = document.createElement("div");
+      item.className = "item";
+      item.setAttribute("data-id", p.cs_id);
+      item.innerHTML = `
+        <div class="name">${p.cs_name || "-"}</div>
+        <div class="addr">${p.address || "-"}</div>
+        <span class="badge">CS</span>
+      `;
+
+      item.addEventListener("click", () => {
+        const [lon, lat] = feature.geometry.coordinates;
+        map.setView([lat, lon], 15);
+        highlightFeature(feature);
+        selectedFeature = feature;
+        
+        // マーカーのポップアップを開く
+        layers.forEach(layer => {
+          if (layer.feature && layer.feature.properties.cs_id === p.cs_id) {
+            layer.openPopup();
+          }
+        });
+        
+        // 香林坊からルートを表示
+        drawWalkingRoute(KORINBO_LAT, KORINBO_LNG, lat, lon);
+      });
+
+      container.appendChild(item);
+    });
+  }
+
+  // 検索機能
+  function filterFeatures(query) {
+    if (!query) {
+      return geojson.features;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    return geojson.features.filter(feature => {
+      const p = feature.properties;
+      return (p.cs_name && p.cs_name.toLowerCase().includes(lowerQuery)) ||
+             (p.address && p.address.toLowerCase().includes(lowerQuery));
+    });
+  }
+
+  // 検索入力
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    const query = e.target.value;
+    const filtered = filterFeatures(query);
+    renderList(filtered);
+    updateMarkers(filtered);
+  });
+
+  // マーカー更新
+  function updateMarkers(features) {
+    // 既存のマーカーを削除
+    layers.forEach(layer => map.removeLayer(layer));
+    layers = [];
+
+    // 新しいマーカーを追加
+    features.forEach(feature => {
+      const layer = createMarker(feature);
+      layer.feature = feature;
+      layer.addTo(map);
+      layers.push(layer);
+    });
+  }
+
+  // 経路クリア機能
+  function clearRoute() {
+    if (routeLine) {
+      map.removeLayer(routeLine);
+      routeLine = null;
+    }
+    // 到達範囲もクリア
+    clearReachableArea();
+    document.getElementById("routePanel").style.display = "none";
+    selectedFeature = null;
+    
+    // リストのハイライトを解除
+    document.querySelectorAll(".item").forEach(item => {
+      item.classList.remove("active");
+    });
+  }
+
+  // 到達範囲クリア
+  function clearReachableArea() {
+    isochroneLayers.forEach(layer => {
+      map.removeLayer(layer);
+    });
+    isochroneLayers = [];
+  }
+
+  // 経路クリアボタン
+  document.getElementById("clearRouteBtn").addEventListener("click", () => {
+    clearRoute();
+  });
+
+  // 到達可能範囲表示
+  document.getElementById("reachableAreaBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("reachableAreaBtn");
+    const originalText = btn.textContent;
+    btn.textContent = "計算中...";
+    btn.disabled = true;
+
+    try {
+      // 既存の到達範囲をクリア
+      clearReachableArea();
+
+      // 複数の時間範囲で到達可能エリアを取得
+      const timeRanges = [5, 10, 15, 20, 30]; // 分
+      const colors = ['#00ff00', '#66ff00', '#99ff00', '#ccff00', '#ffff00']; // 緑→黄
+      const opacities = [0.3, 0.25, 0.2, 0.15, 0.1];
+
+      for (let i = 0; i < timeRanges.length; i++) {
+        const time = timeRanges[i];
+        const color = colors[i];
+        const opacity = opacities[i];
+
+        try {
+          // OpenRouteService Isochrone API
+          // 無料APIキー取得: https://openrouteservice.org/dev/#/signup
+          // 取得したAPIキーを下記に設定してください
+          const apiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjNjYmJhMDNjZjQ5MTQ1ZjlhNDliN2ZmOGFhNGIzNzcxIiwiaCI6Im11cm11cjY0In0='; // APIキー設定済み
+          
+          if (!apiKey || apiKey.length < 10) {
+            throw new Error('APIキーが設定されていません。OpenRouteServiceで無料APIキーを取得してください。');
+          }
+          
+          const url = `https://api.openrouteservice.org/v2/isochrones/foot-walking` +
+                      `?api_key=${apiKey}` +
+                      `&locations=${KORINBO_LNG},${KORINBO_LAT}` +
+                      `&range_type=time` +
+                      `&range=[${time * 60}]` + // 秒単位
+                      `&attributes=area|reachfactor|total_pop`;
+
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json, application/geo+json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.features && data.features.length > 0) {
+              const feature = data.features[0];
+              
+              // GeoJSONをLeafletレイヤーに変換
+              const layer = L.geoJSON(feature, {
+                style: {
+                  color: color,
+                  weight: 2,
+                  fillColor: color,
+                  fillOpacity: opacity
+                }
+              }).addTo(map);
+
+              // ポップアップを追加
+              layer.bindPopup(`${time}分で到達可能な範囲`);
+
+              isochroneLayers.push(layer);
+            }
+          } else {
+            console.warn(`${time}分の到達範囲取得に失敗:`, response.status);
+          }
+
+          // APIレート制限を考慮して少し待機
+          if (i < timeRanges.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          console.error(`${time}分の到達範囲取得エラー:`, error);
+        }
+      }
+
+      // 到達可能なクーリングシェルターをハイライト
+      highlightReachableShelters(timeRanges);
+
+    } catch (error) {
+      console.error("到達範囲取得エラー:", error);
+      if (error.message && error.message.includes('APIキー')) {
+        alert(`エラー: ${error.message}\n\n無料APIキー取得: https://openrouteservice.org/dev/#/signup\n\n取得後、コード内のapiKey変数に設定してください。`);
+      } else {
+        alert("到達範囲の取得に失敗しました。\n\n可能な原因:\n- APIキーが設定されていない\n- APIキーが無効\n- リクエスト制限に達した\n\nしばらく待ってから再試行してください。");
+      }
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  });
+
+  // 到達可能なシェルターをハイライト
+  async function highlightReachableShelters(timeRanges) {
+    // 各シェルターまでの時間を計算
+    const sheltersWithTime = await Promise.all(
+      geojson.features.map(async (feature) => {
+        const [lon, lat] = feature.geometry.coordinates;
+        
+        try {
+          // OSRMで時間を取得（徒歩用：細かい道・公園内の道も考慮）
+          const url = `https://router.project-osrm.org/route/v1/foot/` +
+                      `${KORINBO_LNG},${KORINBO_LAT};${lon},${lat}` +
+                      `?overview=simplified&geometries=geojson`;
+          
+          const res = await fetch(url);
+          const data = await res.json();
+          
+          if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+            const timeMin = Math.round(data.routes[0].duration / 60);
+            return { feature, timeMin };
+          }
+        } catch (error) {
+          console.error("時間計算エラー:", error);
+        }
+        
+        // エラー時は直線距離から推定
+        const distance = calculateDistance(KORINBO_LAT, KORINBO_LNG, lat, lon);
+        const timeMin = Math.round(distance * 15); // 徒歩速度4km/hで計算
+        return { feature, timeMin };
+      })
+    );
+
+    // 時間範囲ごとに分類
+    sheltersWithTime.forEach(({ feature, timeMin }) => {
+      const marker = layers.find(l => l.feature && l.feature.properties.cs_id === feature.properties.cs_id);
+      if (marker) {
+        // 時間に応じてマーカーの色を変更
+        if (timeMin <= 5) {
+          marker.setStyle({ color: '#00ff00', fillColor: '#00ff00' }); // 緑
+        } else if (timeMin <= 10) {
+          marker.setStyle({ color: '#66ff00', fillColor: '#66ff00' });
+        } else if (timeMin <= 15) {
+          marker.setStyle({ color: '#99ff00', fillColor: '#99ff00' });
+        } else if (timeMin <= 20) {
+          marker.setStyle({ color: '#ccff00', fillColor: '#ccff00' });
+        } else if (timeMin <= 30) {
+          marker.setStyle({ color: '#ffff00', fillColor: '#ffff00' }); // 黄
+        }
+        
+        // ポップアップに時間を追加
+        const p = feature.properties;
+        marker.bindPopup(`
+          <strong>${p.cs_name || "-"}</strong><br>
+          ${p.address || "-"}<br>
+          <strong style="color:#2ea0ff;">徒歩約${timeMin}分</strong><br>
+          時間：${p.open_time || "-"}<br>
+          定員：${p.capacity || "-"}<br>
+          備考：${p.notes || "-"}
+        `);
+      }
+    });
+  }
+
+  // 最寄り検索
+  document.getElementById("nearestBtn").addEventListener("click", () => {
+    // 距離計算（香林坊から）
+    const featuresWithDistance = geojson.features.map(feature => {
+      const [fLon, fLat] = feature.geometry.coordinates;
+      const distance = calculateDistance(KORINBO_LAT, KORINBO_LNG, fLat, fLon);
+      return { feature, distance };
+    });
+
+    // 距離でソート
+    featuresWithDistance.sort((a, b) => a.distance - b.distance);
+    const nearest = featuresWithDistance[0];
+
+    if (nearest) {
+      const [destLon, destLat] = nearest.feature.geometry.coordinates;
+      map.setView([destLat, destLon], 15);
+      highlightFeature(nearest.feature);
+      selectedFeature = nearest.feature;
+      
+      // ルートを表示
+      drawWalkingRoute(KORINBO_LAT, KORINBO_LNG, destLat, destLon);
+    }
+  });
+
+  // 距離計算（ハーバーサイン公式）
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // 地球の半径（km）
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // 複数地点の標高を取得（Open-Meteo Elevation API）
+  async function getElevations(coordinates) {
+    try {
+      // ルートのポイントが多い場合はサンプリング（最大50地点）
+      const maxPoints = 50;
+      let sampledCoords = coordinates;
+      if (coordinates.length > maxPoints) {
+        const step = Math.floor(coordinates.length / maxPoints);
+        sampledCoords = [];
+        for (let i = 0; i < coordinates.length; i += step) {
+          sampledCoords.push(coordinates[i]);
+        }
+        // 最後のポイントを必ず含める
+        if (sampledCoords[sampledCoords.length - 1] !== coordinates[coordinates.length - 1]) {
+          sampledCoords.push(coordinates[coordinates.length - 1]);
+        }
+      }
+      
+      // 緯度と経度を分離
+      const latitudes = sampledCoords.map(c => c[1]);
+      const longitudes = sampledCoords.map(c => c[0]);
+      
+      const url = `https://api.open-meteo.com/v1/elevation?` +
+                  `latitude=${latitudes.join(',')}&longitude=${longitudes.join(',')}`;
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      if (data.elevation && data.elevation.length > 0) {
+        // サンプリングした標高を元の座標数に補間
+        if (sampledCoords.length < coordinates.length) {
+          const fullElevations = [];
+          let sampleIdx = 0;
+          for (let i = 0; i < coordinates.length; i++) {
+            const ratio = i / (coordinates.length - 1);
+            const targetSampleIdx = Math.floor(ratio * (sampledCoords.length - 1));
+            if (targetSampleIdx < data.elevation.length) {
+              fullElevations.push(data.elevation[targetSampleIdx]);
+            } else {
+              fullElevations.push(data.elevation[data.elevation.length - 1]);
+            }
+          }
+          return fullElevations;
+        }
+        return data.elevation;
+      }
+      return null;
+    } catch (error) {
+      console.error("標高取得エラー:", error);
+      return null;
+    }
+  }
+
+  // 勾配計算
+  function calculateGradient(elevations, distances) {
+    if (elevations.length < 2 || distances.length < 2) return null;
+    
+    let totalAscent = 0;
+    let totalDescent = 0;
+    let maxGradient = 0;
+    
+    for (let i = 1; i < elevations.length; i++) {
+      const elevDiff = elevations[i] - elevations[i - 1];
+      const dist = distances[i] - distances[i - 1];
+      
+      if (dist > 0) {
+        const gradient = (elevDiff / dist) * 100; // パーセント
+        if (gradient > maxGradient) maxGradient = gradient;
+        if (elevDiff > 0) totalAscent += elevDiff;
+        else totalDescent += Math.abs(elevDiff);
+      }
+    }
+    
+    return {
+      totalAscent: totalAscent.toFixed(0),
+      totalDescent: totalDescent.toFixed(0),
+      maxGradient: maxGradient.toFixed(1)
+    };
+  }
+
+  // 詳細な歩道データを使用した徒歩ルート取得と表示
+  async function drawWalkingRoute(startLat, startLng, endLat, endLng) {
+    // 既存のルートを削除
+    if (routeLine) {
+      map.removeLayer(routeLine);
+      routeLine = null;
+    }
+
+    // ルート情報パネルを表示
+    document.getElementById("routePanel").style.display = "block";
+    document.getElementById("distanceValue").textContent = "計算中...";
+    document.getElementById("distanceSub").textContent = "";
+    document.getElementById("timeValue").textContent = "計算中...";
+    document.getElementById("timeSub").textContent = "徒歩";
+    document.getElementById("gradientValue").textContent = "計算中...";
+    document.getElementById("gradientSub").textContent = "";
+
+    try {
+      // OpenRouteService Directions APIを使用（詳細な歩道データに対応）
+      // 既に取得済みのAPIキーを使用
+      const apiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjNjYmJhMDNjZjQ5MTQ1ZjlhNDliN2ZmOGFhNGIzNzcxIiwiaCI6Im11cm11cjY0In0=';
+      
+      // 詳細な歩道データを取得するためのリクエスト
+      const url = `https://api.openrouteservice.org/v2/directions/foot-walking` +
+                  `?api_key=${apiKey}` +
+                  `&start=${startLng},${startLat}` +
+                  `&end=${endLng},${endLat}` +
+                  `&geometry=true` +
+                  `&geometry_format=geojson` +
+                  `&instructions=true` +
+                  `&instructions_format=text` +
+                  `&elevation=true` +
+                  `&extra_info=surface|waytype|waycategory|steepness`;
+      
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json, application/geo+json'
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error(`APIエラー: ${res.status}`);
+      }
+      
+      const data = await res.json();
+
+      // OpenRouteServiceのレスポンス形式を処理
+      let route, geometry, coords;
+      
+      if (data.features && data.features.length > 0) {
+        // GeoJSON形式のレスポンス
+        const feature = data.features[0];
+        route = feature.properties;
+        geometry = feature.geometry;
+        coords = geometry.coordinates.map(c => [c[1], c[0]]);
+      } else if (data.routes && data.routes.length > 0) {
+        // 標準形式のレスポンス
+        route = data.routes[0];
+        geometry = route.geometry || { coordinates: route.coordinates };
+        coords = geometry.coordinates.map(c => Array.isArray(c) && c.length >= 2 ? [c[1], c[0]] : null).filter(c => c !== null);
+      } else {
+        throw new Error('ルートデータが見つかりません');
+      }
+      
+      if (!coords || coords.length === 0) {
+        throw new Error('ルート座標が取得できませんでした');
+      }
+      
+      console.log(`詳細な歩道データ: ${coords.length}ポイント`);
+      if (route.extras) {
+        console.log('追加情報（歩道タイプ、表面材質など）:', route.extras);
+      }
+
+      // ルートラインを描画（詳細な歩道データを使用）
+      routeLine = L.polyline(coords, {
+        color: "#2ea0ff",
+        weight: 5,
+        opacity: 0.8,
+        lineJoin: 'round',
+        lineCap: 'round',
+        smoothFactor: 1.0 // 詳細な歩道経路を滑らかに表示
+      }).addTo(map);
+        
+      // 詳細な歩道情報をログに出力
+      if (route.segments && route.segments.length > 0) {
+        console.log(`詳細な歩道セグメント数: ${route.segments.length}セグメント`);
+        console.log(`歩道座標数: ${coords.length}ポイント（詳細な歩道データを含む）`);
+      }
+      
+      // 歩道タイプ情報があれば表示
+      if (route.extras && route.extras.waytype) {
+        console.log('歩道タイプ情報:', route.extras.waytype);
+      }
+
+      // 地図をルート全体が表示されるように調整
+      map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+      // 距離と時間を表示（OpenRouteServiceの形式）
+      let distKm, distM, timeMin, timeSec;
+      
+      if (route.segments && route.segments.length > 0) {
+        // セグメント形式
+        distM = Math.round(route.segments[0].distance);
+        const totalDuration = route.segments.reduce((sum, seg) => sum + (seg.duration || 0), 0);
+        timeMin = Math.round(totalDuration / 60);
+        timeSec = Math.round(totalDuration % 60);
+      } else if (route.summary) {
+        // サマリー形式
+        distM = Math.round(route.summary.distance);
+        timeMin = Math.round(route.summary.duration / 60);
+        timeSec = Math.round(route.summary.duration % 60);
+      } else {
+        // フォールバック: 座標から計算
+        let totalDist = 0;
+        for (let i = 1; i < geometry.coordinates.length; i++) {
+          const [lon1, lat1] = geometry.coordinates[i - 1];
+          const [lon2, lat2] = geometry.coordinates[i];
+          totalDist += calculateDistance(lat1, lon1, lat2, lon2) * 1000;
+        }
+        distM = Math.round(totalDist);
+        timeMin = Math.round(distM / 1000 * 15); // 徒歩速度4km/hで計算
+        timeSec = 0;
+      }
+      
+      distKm = (distM / 1000).toFixed(1);
+      
+      document.getElementById("distanceValue").textContent = `${distKm} km`;
+      document.getElementById("distanceSub").textContent = `${distM.toLocaleString()} m`;
+      document.getElementById("timeValue").textContent = `${timeMin} 分`;
+      document.getElementById("timeSub").textContent = timeSec > 0 ? `約 ${timeMin}分${timeSec}秒` : `約 ${timeMin}分`;
+
+      // 標高データを取得して勾配を計算（OpenRouteServiceの標高データを使用）
+      try {
+        // OpenRouteServiceが標高データを提供している場合はそれを使用
+        let elevations = null;
+        if (route.elevation && Array.isArray(route.elevation) && route.elevation.length > 0) {
+          elevations = route.elevation;
+          console.log('OpenRouteServiceの標高データを使用');
+        } else if (route.ascent !== undefined && route.descent !== undefined) {
+          // 標高差データから推定
+          elevations = [0]; // 開始点
+          const totalElevation = route.ascent - route.descent;
+          for (let i = 1; i < geometry.coordinates.length; i++) {
+            const ratio = i / (geometry.coordinates.length - 1);
+            elevations.push(totalElevation * ratio);
+          }
+          console.log('標高差データから推定');
+        } else {
+          // フォールバック: Open-Meteo APIを使用
+          elevations = await getElevations(geometry.coordinates);
+          console.log('Open-Meteo APIの標高データを使用');
+        }
+        
+        if (elevations && elevations.length > 1) {
+          // 各ポイントまでの累積距離を計算
+          const distances = [0];
+          for (let i = 1; i < geometry.coordinates.length; i++) {
+            const [lon1, lat1] = geometry.coordinates[i - 1];
+            const [lon2, lat2] = geometry.coordinates[i];
+            const dist = calculateDistance(lat1, lon1, lat2, lon2) * 1000; // メートル
+            distances.push(distances[distances.length - 1] + dist);
+          }
+
+          const gradient = calculateGradient(elevations, distances);
+          if (gradient) {
+            document.getElementById("gradientValue").textContent = 
+              `↑${gradient.totalAscent}m ↓${gradient.totalDescent}m`;
+            document.getElementById("gradientSub").textContent = 
+              `最大勾配: ${gradient.maxGradient}%`;
+          } else {
+            document.getElementById("gradientValue").textContent = "計算不可";
+            document.getElementById("gradientSub").textContent = "";
+          }
+        } else {
+          document.getElementById("gradientValue").textContent = "データなし";
+          document.getElementById("gradientSub").textContent = "";
+        }
+      } catch (error) {
+        console.error("勾配計算エラー:", error);
+        document.getElementById("gradientValue").textContent = "取得失敗";
+        document.getElementById("gradientSub").textContent = "";
+      }
+    } catch (error) {
+      console.error("ルート取得エラー:", error);
+      // エラー時は直線距離を表示
+      const distance = calculateDistance(startLat, startLng, endLat, endLng);
+      const distKm = distance.toFixed(1);
+      const distM = Math.round(distance * 1000);
+      const timeMin = Math.round(distance * 15);
+      
+      document.getElementById("distanceValue").textContent = `${distKm} km`;
+      document.getElementById("distanceSub").textContent = `${distM.toLocaleString()} m（直線距離）`;
+      document.getElementById("timeValue").textContent = `${timeMin} 分`;
+      document.getElementById("timeSub").textContent = "推定時間（徒歩）";
+      document.getElementById("gradientValue").textContent = "-";
+      document.getElementById("gradientSub").textContent = "エラー";
+    }
+  }
+
+  // 初期表示
+  renderList(geojson.features);
+  updateMarkers(geojson.features);
+});
+</script>
+</body>
+</html>

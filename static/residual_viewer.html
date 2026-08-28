@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>残差樹木日陰マップ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    :root {
+      --bg: #eef1f4;
+      --card: #fff;
+      --ink: #1c2430;
+      --muted: #5b6775;
+      --line: #d5dbe3;
+      --accent: #1f4e79;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: 100%;
+    }
+    aside {
+      background: var(--card);
+      border-right: 1px solid var(--line);
+      overflow: auto;
+      padding: 14px 14px 24px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .sub {
+      margin: 0 0 14px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    label.field {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 10px 0 4px;
+    }
+    select, input[type="range"] {
+      width: 100%;
+    }
+    select {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+    .section {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: 0.82rem;
+      color: var(--accent);
+    }
+    .preset {
+      display: grid;
+      gap: 6px;
+    }
+    .preset button, .btn {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7f9fb;
+      cursor: pointer;
+      font-size: 0.82rem;
+      text-align: left;
+      padding: 6px 10px;
+    }
+    .preset button:hover, .btn:hover { background: #eef4fa; }
+    .preset button.active {
+      border-color: var(--accent);
+      background: #e8f0f8;
+      font-weight: 700;
+    }
+    .layers {
+      display: grid;
+      gap: 6px;
+    }
+    .layers label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.84rem;
+      padding: 4px 0;
+      cursor: pointer;
+    }
+    .sw {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex: 0 0 14px;
+      border: 1px solid rgba(0,0,0,.15);
+    }
+    .stats {
+      font-size: 0.8rem;
+      line-height: 1.55;
+      background: #f7f9fb;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .stats b { color: var(--accent); }
+    #map { height: 100%; width: 100%; }
+    .legend-float {
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .err {
+      color: #b71c1c;
+      font-size: 0.82rem;
+      background: #ffebee;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: auto 55vh; }
+      aside { max-height: 45vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <h1>残差樹木日陰マップ</h1>
+      <p class="sub">
+        画像日陰 S から建物影 B を差し引き、樹木下・投下・残差を地図上で重ねて確認します。
+        ベースマップは国土地理院タイルです。
+      </p>
+
+      <label class="field" for="scenario">シナリオ（航空時刻整合）</label>
+      <select id="scenario"></select>
+
+      <div class="section">
+        <h2>表示プリセット</h2>
+        <div class="preset" id="presets">
+          <button type="button" data-preset="decomp" class="active">分解カラー（推奨）</button>
+          <button type="button" data-preset="S_B">画像S + 建物B</button>
+          <button type="button" data-preset="trees">樹木成分（下+投下）</button>
+          <button type="button" data-preset="recon">再構成 B∪樹木</button>
+          <button type="button" data-preset="residual">残差 R のみ</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>レイヤ（個別ON/OFF）</h2>
+        <div class="layers" id="layers">
+          <label><input type="checkbox" data-layer="decomp" checked /><span class="sw" style="background:#5c6bc0"></span>分解カラー</label>
+          <label><input type="checkbox" data-layer="S" /><span class="sw" style="background:#64b4ff"></span>S 画像日陰</label>
+          <label><input type="checkbox" data-layer="B" /><span class="sw" style="background:#465ab4"></span>B 建物幾何</label>
+          <label><input type="checkbox" data-layer="O" /><span class="sw" style="background:#ff8c28"></span>O = S−B その他</label>
+          <label><input type="checkbox" data-layer="T_under" /><span class="sw" style="background:#288c46"></span>T 樹木下</label>
+          <label><input type="checkbox" data-layer="T_cast" /><span class="sw" style="background:#78c83c"></span>T 投下候補</label>
+          <label><input type="checkbox" data-layer="R" /><span class="sw" style="background:#e65a14"></span>R 残差</label>
+          <label><input type="checkbox" data-layer="canopy" /><span class="sw" style="background:#146428"></span>樹冠</label>
+          <label><input type="checkbox" data-layer="recon_BT" /><span class="sw" style="background:#3282c8"></span>B∪樹木 再構成</label>
+        </div>
+        <label class="field" for="opacity">重ね透明度（個別レイヤ）</label>
+        <input id="opacity" type="range" min="0.3" max="1" step="0.05" value="0.85" />
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:0.84rem;">
+          <input type="checkbox" id="roadOnly" checked /> 道路セルのみ表示
+        </label>
+      </div>
+
+      <div class="section">
+        <h2>指標（画像Sに対するF1）</h2>
+        <div class="stats" id="stats">シナリオを読み込み中…</div>
+      </div>
+
+      <div id="error" class="err" style="display:none;"></div>
+      <p class="sub" style="margin-top:14px;">
+        起動: <code>py -3 -m uvicorn residual_viewer_app:app --host 127.0.0.1 --port 8767</code><br/>
+        ナビ本体は 8765 / 統合版は 8766。
+      </p>
+    </aside>
+    <div id="map"></div>
+  </div>
+
+  <script>
+    const map = L.map("map", { zoomControl: true }).setView([36.5685, 136.6585], 15);
+    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg", {
+      attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html'>国土地理院</a>",
+      maxZoom: 18,
+      maxNativeZoom: 18,
+    }).addTo(map);
+    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
+      opacity: 0.35,
+      maxZoom: 18,
+    }).addTo(map);
+
+    const overlays = {};
+    let bounds = null;
+    let currentId = null;
+    let scenarios = [];
+
+    const legend = L.control({ position: "bottomright" });
+    legend.onAdd = () => {
+      const d = L.DomUtil.create("div", "legend-float");
+      d.innerHTML = [
+        "<b>分解カラー</b>",
+        "<div><span style='color:#5c6bc0'>■</span> 建物一致 S∩B</div>",
+        "<div><span style='color:#2e7d32'>■</span> 樹木下</div>",
+        "<div><span style='color:#9ccc65'>■</span> 投下候補</div>",
+        "<div><span style='color:#ef6c00'>■</span> 残差その他</div>",
+        "<div><span style='color:#bdbdbd'>■</span> モデルのみ建物</div>",
+      ].join("");
+      return d;
+    };
+    legend.addTo(map);
+
+    function showError(msg) {
+      const el = document.getElementById("error");
+      if (!msg) { el.style.display = "none"; el.textContent = ""; return; }
+      el.style.display = "block";
+      el.textContent = msg;
+    }
+
+    function overlayUrl(layer) {
+      const roadOnly = document.getElementById("roadOnly").checked ? "true" : "false";
+      const opacity = document.getElementById("opacity").value;
+      const q = `road_only=${roadOnly}&opacity=${opacity}&t=${Date.now()}`;
+      return `/api/overlay/${encodeURIComponent(currentId)}/${encodeURIComponent(layer)}.png?${q}`;
+    }
+
+    function clearOverlays() {
+      Object.keys(overlays).forEach((k) => {
+        map.removeLayer(overlays[k]);
+        delete overlays[k];
+      });
+    }
+
+    function syncOverlays() {
+      if (!currentId || !bounds) return;
+      const checks = [...document.querySelectorAll("#layers input[data-layer]")];
+      checks.forEach((inp) => {
+        const layer = inp.dataset.layer;
+        if (inp.checked) {
+          if (overlays[layer]) map.removeLayer(overlays[layer]);
+          overlays[layer] = L.imageOverlay(overlayUrl(layer), bounds, {
+            opacity: 1,
+            interactive: false,
+          }).addTo(map);
+        } else if (overlays[layer]) {
+          map.removeLayer(overlays[layer]);
+          delete overlays[layer];
+        }
+      });
+    }
+
+    function setPreset(name) {
+      document.querySelectorAll("#presets button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.preset === name);
+      });
+      const on = {
+        decomp: ["decomp"],
+        S_B: ["S", "B"],
+        trees: ["T_under", "T_cast", "canopy"],
+        recon: ["recon_BT"],
+        residual: ["R"],
+      }[name] || ["decomp"];
+      document.querySelectorAll("#layers input[data-layer]").forEach((inp) => {
+        inp.checked = on.includes(inp.dataset.layer);
+      });
+      syncOverlays();
+    }
+
+    function renderStats(sc) {
+      const f1 = sc.f1_vs_S_all || {};
+      const c = sc.counts_road_all || {};
+      const sol = sc.solar || {};
+      document.getElementById("stats").innerHTML = [
+        `<div><b>時刻</b> ${sc.datetime_jst || "—"}</div>`,
+        `<div><b>太陽</b> 方位 ${sol.azimuth_deg != null ? sol.azimuth_deg.toFixed(1) : "—"}° / 高度 ${sol.elevation_deg != null ? sol.elevation_deg.toFixed(1) : "—"}°</div>`,
+        `<div><b>F1 vs S</b> B=${(f1.B ?? 0).toFixed(3)} / B+Tu=${(f1.B_plus_T_under ?? 0).toFixed(3)} / B+Tall=${(f1.B_plus_T_all ?? 0).toFixed(3)}</div>`,
+        `<div><b>道路セル</b> S=${c.S ?? "—"} O=${c.O ?? "—"} Tu=${c.T_under ?? "—"} Tc=${c.T_cast ?? "—"} R=${c.R ?? "—"}</div>`,
+        `<div style="margin-top:6px;color:#5b6775">${sc.note || ""}</div>`,
+      ].join("");
+    }
+
+    async function loadScenario(id) {
+      showError("");
+      currentId = id;
+      const res = await fetch(`/api/scenario/${encodeURIComponent(id)}`);
+      if (!res.ok) {
+        showError("シナリオの読み込みに失敗しました。キャッシュを生成してください。");
+        return;
+      }
+      const meta = await res.json();
+      bounds = meta.bounds_leaflet;
+      map.fitBounds(bounds, { padding: [20, 20] });
+      renderStats(meta);
+      clearOverlays();
+      setPreset(document.querySelector("#presets button.active")?.dataset.preset || "decomp");
+    }
+
+    async function init() {
+      const res = await fetch("/api/scenarios");
+      const data = await res.json();
+      scenarios = data.scenarios || [];
+      const sel = document.getElementById("scenario");
+      sel.innerHTML = "";
+      if (!scenarios.length) {
+        showError("キャッシュがありません。先に: py -3 residual_tree_shade_aerial_time.py --cell-m 2 --only ccb2007_nendo_1045,s2_20230724_1047");
+        document.getElementById("stats").textContent = "データなし";
+        return;
+      }
+      scenarios.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.label || s.id;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener("change", () => loadScenario(sel.value));
+      document.getElementById("presets").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-preset]");
+        if (btn) setPreset(btn.dataset.preset);
+      });
+      document.getElementById("layers").addEventListener("change", syncOverlays);
+      document.getElementById("opacity").addEventListener("change", syncOverlays);
+      document.getElementById("roadOnly").addEventListener("change", syncOverlays);
+      await loadScenario(scenarios[0].id);
+    }
+
+    init();
+  </script>
+</body>
+</html>

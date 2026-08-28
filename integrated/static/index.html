@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>統合ルート検索（日陰・CS）</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    :root {
+      --bg: #e8edf2;
+      --panel: #fff;
+      --accent: #0d47a1;
+      --accent-hi: #1565c0;
+      --muted: #546e7a;
+      --border: #cfd8dc;
+      --sidebar-w: 300px;
+      --info-w: 300px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif;
+      background: var(--bg);
+      color: #263238;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .topbar {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .topbar h1 { margin: 0; font-size: 1rem; font-weight: 700; }
+    .topbar .sub { font-size: 0.72rem; color: var(--muted); }
+    .topbar nav { font-size: 0.75rem; }
+    .topbar nav a { color: var(--accent-hi); font-weight: 600; }
+    .topbar nav a.current { color: #263238; text-decoration: none; pointer-events: none; }
+    .sys-note {
+      margin: 6px 0 0;
+      padding: 6px 8px;
+      font-size: 0.72rem;
+      line-height: 1.4;
+      border-radius: 6px;
+      background: #eceff1;
+    }
+    .sys-note.new { background: #e8f5e9; color: #1b5e20; }
+    .api-pill {
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eceff1;
+      white-space: nowrap;
+    }
+    .api-pill.ok { background: #e8f5e9; color: #1b5e20; }
+    .api-pill.err { background: #ffebee; color: #b71c1c; }
+
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr var(--info-w);
+      min-height: 0;
+    }
+    @media (max-width: 1024px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        overflow-y: auto;
+      }
+      .sidebar { max-height: 42vh; border-right: none; border-bottom: 1px solid var(--border); }
+      .map-area { min-height: 50vh; }
+      .infopanel { max-height: 40vh; border-left: none; border-top: 1px solid var(--border); }
+    }
+
+    .sidebar, .infopanel {
+      background: var(--panel);
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 12px;
+    }
+    .infopanel {
+      border-left: 1px solid var(--border);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .map-area {
+      position: relative;
+      min-height: 0;
+      background: #dde4ea;
+    }
+    #map { width: 100%; height: 100%; min-height: 280px; }
+
+    .nav-section {
+      margin-bottom: 12px;
+      padding: 12px;
+      background: #f7fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .nav-section h2 {
+      margin: 0 0 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: none;
+    }
+    .hint { font-size: 0.72rem; color: var(--muted); line-height: 1.45; margin: 0 0 8px; }
+    .btn-row { display: flex; flex-direction: column; gap: 6px; }
+    .btn {
+      width: 100%;
+      min-height: 42px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+    }
+    .btn:hover { background: #e3f2fd; }
+    .btn.active {
+      border-color: var(--accent);
+      background: #e8eaf6;
+      font-weight: 600;
+    }
+    .btn-primary {
+      text-align: center;
+      font-weight: 700;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hi); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-secondary { font-size: 0.82rem; min-height: 38px; text-align: center; }
+
+    .field { margin-bottom: 8px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .field input, .field select {
+      width: 100%;
+      min-height: 38px;
+      padding: 6px 8px;
+      font-size: 0.88rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .factor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .factor-grid label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      padding: 8px 8px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 0;
+      min-height: 40px;
+    }
+    .factor-grid input { width: 1rem; height: 1rem; flex-shrink: 0; margin: 0; }
+    .cs-note {
+      margin-top: 8px;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 6px;
+      color: #0d47a1;
+    }
+    .btn-visit.active {
+      border-color: #0277bd;
+      background: #e1f5fe;
+    }
+    details summary {
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: var(--accent-hi);
+      margin-top: 6px;
+    }
+    .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+
+    .info-card {
+      padding: 10px 12px;
+      background: #f7fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.82rem;
+    }
+    .info-card h3 {
+      margin: 0 0 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .info-card dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 10px;
+      font-size: 0.8rem;
+    }
+    .info-card dt { color: var(--muted); margin: 0; }
+    .info-card dd { margin: 0; font-weight: 500; }
+
+    .status {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #eceff1;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      flex-shrink: 0;
+    }
+    .status.ok { background: #e8f5e9; color: #1b5e20; }
+    .status.err { background: #ffebee; color: #b71c1c; }
+
+    .result {
+      flex: 1;
+      min-height: 80px;
+      padding: 10px;
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-family: ui-monospace, Consolas, monospace;
+      white-space: pre-wrap;
+      overflow: auto;
+    }
+    .result[hidden] { display: none; }
+
+    .legend {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .legend span.dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .foot-note { font-size: 0.68rem; color: var(--muted); line-height: 1.5; }
+    .foot-note code { font-size: 0.65rem; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1 id="t_title">金沢 · 日陰・CS 統合ルート（旧）</h1>
+      <p class="sub" id="t_sub">地図中心 — 左で操作、右で結果</p>
+      <p class="sys-note" id="sysNote">旧システム：軽量モデルの日陰のみ（樹木の追加日陰は含みません）。</p>
+      <nav>
+        <a href="/" id="navOld">旧システム</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/new" id="navNew">最新システム</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/compare" id="navCmp">ルート比較</a>
+      </nav>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button type="button" id="langToggle" class="btn btn-secondary" style="min-height:30px;padding:6px 10px;width:auto;">
+        EN
+      </button>
+      <span class="api-pill" id="apiPill">API …</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- 左: 操作メニュー -->
+    <aside class="sidebar" aria-label="操作メニュー" id="t_sidebar">
+      <section class="nav-section">
+        <h2 id="t_sec1">1. 地点（地図）</h2>
+        <p class="hint" id="t_sec1_hint">ボタンを押してから地図をタップ。もう一度押すか Esc で解除。</p>
+        <div class="btn-row">
+          <button type="button" class="btn" id="btnOrig">① 起点</button>
+          <button type="button" class="btn" id="btnDest">② 終点</button>
+          <button type="button" class="btn btn-visit" id="btnVisit">③ 立ち寄り CS</button>
+        </div>
+        <div class="field" style="margin-top:8px;">
+          <label for="csDest" id="t_csDestLabel">終点を CS 一覧から</label>
+          <select id="csDest"><option value="">— 読み込み中 —</option></select>
+        </div>
+        <input type="hidden" id="csVisit" value="auto" />
+        <button type="button" class="btn btn-secondary" id="btnResetVisit" style="margin-top:8px;">
+          立ち寄りを自動選定に戻す
+        </button>
+      </section>
+
+      <section class="nav-section">
+        <h2 id="t_sec2">2. 日付・時刻</h2>
+        <div class="date-row">
+          <div class="field">
+            <label for="routeDate" id="t_dateLabel">日付</label>
+            <input type="date" id="routeDate" value="2026-08-05" />
+          </div>
+          <div class="field">
+            <label for="hour" id="t_hourLabel">時刻</label>
+            <select id="hour"></select>
+          </div>
+        </div>
+      </section>
+
+      <section class="nav-section">
+        <h2 id="t_sec3">3. 歩行区間のコスト要素</h2>
+        <p class="hint" id="t_sec3_hint">チェックした項目だけが道路コストに使われます。</p>
+        <div class="factor-grid">
+          <label id="t_f_dist"><input type="checkbox" id="f_dist" checked /> 距離</label>
+          <label id="t_f_time"><input type="checkbox" id="f_time" checked /> 時間</label>
+          <label id="t_f_slope"><input type="checkbox" id="f_slope" checked /> 勾配</label>
+          <label id="t_f_shadow"><input type="checkbox" id="f_shadow" checked /> 日陰の多い道</label>
+          <label id="t_f_tree" hidden><input type="checkbox" id="f_tree" /> 樹木日陰（軽量に無い高精度分）</label>
+        </div>
+        <p class="cs-note">
+          <strong id="t_csRequiredStrong">CS 立ち寄り</strong><span id="t_csRequiredText">は常に最低1か所必須（③未指定時は自動選定）。</span>
+        </p>
+        <details>
+          <summary id="t_weightsSummary">重み・滞在時間</summary>
+          <div class="adv-grid">
+            <div class="field"><label for="w_dist" id="t_w_dist">距離</label><input type="number" id="w_dist" value="1" step="0.1" /></div>
+            <div class="field"><label for="w_time" id="t_w_time">時間</label><input type="number" id="w_time" value="1" step="0.1" /></div>
+            <div class="field"><label for="w_slope" id="t_w_slope">勾配</label><input type="number" id="w_slope" value="3" step="0.1" /></div>
+            <div class="field"><label for="w_shadow" id="t_w_shadow">日陰</label><input type="number" id="w_shadow" value="4" step="0.1" /></div>
+            <div class="field"><label for="w_cs" id="t_w_cs">CS</label><input type="number" id="w_cs" value="2.5" step="0.1" /></div>
+            <div class="field"><label for="csDwell" id="t_csDwell">滞在[s]</label><input type="number" id="csDwell" value="600" step="60" /></div>
+            <div class="field"><label for="walkSpeed" id="t_walkSpeed">歩速</label><input type="number" id="walkSpeed" value="1.2" step="0.1" /></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="nav-section">
+        <label class="hint" style="display:block;margin-bottom:8px;" id="t_compareAccuracy">
+          <input type="checkbox" id="f_compareAccuracy" />
+          精度比較（全57 CS 基準・やや遅い）
+        </label>
+        <button type="button" class="btn btn-primary" id="btnGo" disabled>ルートを計算・表示</button>
+        <button type="button" class="btn btn-secondary" id="btnReset" style="margin-top:8px;">地点をクリア</button>
+      </section>
+    </aside>
+
+    <!-- 中央: 地図 -->
+    <main class="map-area">
+      <div id="map" role="application" aria-label="地図"></div>
+    </main>
+
+    <!-- 右: 情報 -->
+    <aside class="infopanel" aria-label="情報パネル">
+      <div class="status" id="status" role="status">Checking connection…</div>
+
+      <div class="info-card">
+        <h3 id="t_selectedPoints">指定地点</h3>
+        <dl>
+          <dt id="t_dt_orig">起点</dt><dd id="infoOrig">未設定</dd>
+          <dt id="t_dt_dest">終点</dt><dd id="infoDest">未設定</dd>
+          <dt id="t_dt_visit">立ち寄り CS</dt><dd id="infoVisit">ルート計算時に自動</dd>
+        </dl>
+      </div>
+
+      <div class="info-card" id="routeCard" hidden>
+        <h3 id="t_routeResult">ルート結果</h3>
+        <dl>
+          <dt id="t_dt_len">距離</dt><dd id="infoLen">—</dd>
+          <dt id="t_dt_shade">日陰率</dt><dd id="infoShade">—</dd>
+          <dt id="t_dt_stop">立ち寄り</dt><dd id="infoCsName">—</dd>
+          <dt id="t_dt_cs_addr">住所</dt><dd id="infoCsAddr">—</dd>
+          <dt id="t_dt_time">所要目安</dt><dd id="infoTime">—</dd>
+          <dt id="t_dt_calc">計算時間</dt><dd id="infoCalcTime">—</dd>
+          <dt id="t_dt_acc">精度Δ（57件基準）</dt><dd id="infoAccuracy" title="compare_accuracy 時">—</dd>
+        </dl>
+      </div>
+
+      <div class="info-card" id="csCard" hidden>
+        <h3 id="t_csInfo">クーリングシェルター</h3>
+        <dl>
+          <dt id="t_cs_name">名称</dt><dd id="csInfoName">—</dd>
+          <dt id="t_cs_addr">住所</dt><dd id="csInfoAddr">—</dd>
+          <dt id="t_cs_open">開館</dt><dd id="csInfoOpen">—</dd>
+          <dt id="t_cs_cap">定員</dt><dd id="csInfoCap">—</dd>
+          <dt id="t_cs_rest">休憩</dt><dd id="csInfoRest">—</dd>
+          <dt id="t_cs_notes">備考</dt><dd id="csInfoNotes">—</dd>
+        </dl>
+      </div>
+
+      <div class="info-card legend">
+        <h3 style="margin:0 0 6px;font-size:0.75rem;color:var(--accent);" id="t_legend">凡例</h3>
+        <div id="t_legend_od"><span class="dot" style="background:#1976d2"></span> 起点・終点</div>
+        <div id="t_legend_cs"><span class="dot" style="background:#4fc3f7;border:1px solid #01579b"></span> CS（57件）</div>
+        <div id="t_legend_route"><span class="dot" style="background:#0d47a1"></span> ルート（旧：青／最新：緑）</div>
+      </div>
+
+      <pre class="result" id="out" hidden aria-label="Route result JSON"></pre>
+
+      <p class="foot-note">
+        <code>uvicorn integrated.app:app --port 8766</code><br />
+        旧: <code>/</code>　最新: <code>/new</code>　比較: <code>/compare</code><br />
+        English: <code>http://127.0.0.1:8766/?lang=en</code> or <code>/en</code><br />
+        地図 © <a href="https://maps.gsi.go.jp/copyright/ja.html" target="_blank" rel="noopener">国土地理院</a>
+      </p>
+    </aside>
+  </div>
+
+  <script>
+    (function () {
+      const API_BASE = (function () {
+        if (window.location.protocol === 'file:') {
+          return localStorage.getItem('integrated_api_base') || 'http://127.0.0.1:8766';
+        }
+        return '';
+      })();
+      function apiUrl(path) { return API_BASE + path; }
+
+      // --- i18n (very small, for English UI) ---
+      var params = new URLSearchParams(location.search);
+      var lang = (params.get('lang') || 'ja').toLowerCase();
+      if (window.location.pathname.indexOf('/en') >= 0 || /index_en\.html$/i.test(window.location.pathname)) {
+        lang = 'en';
+      }
+      var isEn = lang === 'en';
+      var SYSTEM_NEW = /\/new$/.test((location.pathname || '').replace(/\/+$/, ''));
+      var ROUTE_COLOR = SYSTEM_NEW ? '#2e7d32' : '#0d47a1';
+      function langHref(href) {
+        if (!isEn) return href;
+        return href + (href.indexOf('?') >= 0 ? '&' : '?') + 'lang=en';
+      }
+      (function applySystemChrome() {
+        var navOld = document.getElementById('navOld');
+        var navNew = document.getElementById('navNew');
+        var navCmp = document.getElementById('navCmp');
+        if (navOld) navOld.setAttribute('href', langHref('/'));
+        if (navNew) navNew.setAttribute('href', langHref('/new'));
+        if (navCmp) navCmp.setAttribute('href', langHref('/compare'));
+        if (SYSTEM_NEW) {
+          if (navNew) navNew.className = 'current';
+          var titleEl = document.getElementById('t_title');
+          if (titleEl && !isEn) titleEl.textContent = '金沢 · 日陰・CS 統合ルート（最新）';
+          var noteEl = document.getElementById('sysNote');
+          if (noteEl) {
+            noteEl.className = 'sys-note new';
+            noteEl.textContent = isEn
+              ? 'Latest: light-model shade plus high-precision tree residual.'
+              : '最新システム：軽量モデルの日陰に、高精度モデルだけが持つ樹木日陰を加算します。';
+          }
+        } else if (navOld) {
+          navOld.className = 'current';
+        }
+      })();
+      function t(key) {
+        if (!isEn) return key;
+        // small translator for dynamic strings
+        var map = {
+          'Auto-selected during routing': 'Auto-selected during routing',
+          'Manual': 'Manual',
+          'Auto': 'Auto',
+          'Pick mode cleared.': 'Pick mode cleared.',
+          'Tap map to set origin (toggle with ①)': 'Tap the map to set the origin (toggle with ①).',
+          'Tap map to set destination (toggle with ②)': 'Tap the map to set the destination (toggle with ②).',
+          'Tap a CS marker to set visit stop (toggle with ③)': 'Tap a CS marker to set the visit stop (toggle with ③).',
+          'Destination': 'Destination',
+          'Visit': 'Visit',
+          'Cooling shelter': 'Cooling shelter',
+          'Open hours': 'Open hours',
+          'Capacity': 'Capacity',
+          'Rest space': 'Rest space',
+          'Notes': 'Notes',
+          'Address': 'Address',
+          'CS list': 'CS list',
+          'Destination: ': 'Destination: ',
+          'Visit: ': 'Visit: ',
+        };
+        return map[key] || key;
+      }
+
+      if (isEn) {
+        document.documentElement.lang = 'en';
+        document.title = SYSTEM_NEW
+          ? 'Integrated route search (latest, tree shade)'
+          : 'Integrated route search (legacy, light shade)';
+        var set = function (id, text) { var el = document.getElementById(id); if (el) el.textContent = text; };
+        set('t_title', SYSTEM_NEW
+          ? 'Kanazawa · Integrated route (latest)'
+          : 'Kanazawa · Integrated route (legacy)');
+        set('t_sub', 'Map center — controls on left, results on right');
+        set('t_sec1', '1. Locations (map)');
+        set('t_sec1_hint', 'Click a button, then click the map. Click again or press Esc to cancel.');
+        set('btnOrig', '① Origin');
+        set('btnDest', '② Destination');
+        set('btnVisit', '③ Visit CS');
+        set('t_csDestLabel', 'Set destination from CS list');
+        set('btnResetVisit', 'Reset visit CS to Auto');
+        set('t_sec2', '2. Date & time');
+        set('t_dateLabel', 'Date');
+        set('t_hourLabel', 'Hour');
+        set('t_sec3', '3. Route cost factors');
+        set('t_sec3_hint', 'Only checked items are used in edge costs.');
+        // checkbox labels include input; adjust via lastChild text node
+        var fixLabel = function (id, text) { var el = document.getElementById(id); if (!el) return; var nodes = el.childNodes; if (nodes && nodes.length) nodes[nodes.length - 1].textContent = ' ' + text; };
+        fixLabel('t_f_dist', 'Distance');
+        fixLabel('t_f_time', 'Time');
+        fixLabel('t_f_slope', 'Slope');
+        fixLabel('t_f_shadow', 'Prefer shade');
+        fixLabel('t_f_tree', 'Tree shade (HP residual)');
+        set('t_csRequiredStrong', 'CS stop');
+        set('t_csRequiredText', ' is always required at least once (Auto if not specified).');
+        set('t_weightsSummary', 'Weights & dwell time');
+        set('t_w_dist', 'Distance');
+        set('t_w_time', 'Time');
+        set('t_w_slope', 'Slope');
+        set('t_w_shadow', 'Shade');
+        set('t_w_cs', 'CS');
+        set('t_csDwell', 'Dwell [s]');
+        set('t_walkSpeed', 'Speed [m/s]');
+        // compare accuracy label
+        var ca = document.getElementById('t_compareAccuracy');
+        if (ca) ca.childNodes[ca.childNodes.length - 1].textContent = ' Compare accuracy (all 57 CS; slower)';
+        set('btnGo', 'Compute & show route');
+        set('btnReset', 'Clear points');
+        set('t_selectedPoints', 'Selected points');
+        set('t_dt_orig', 'Origin');
+        set('t_dt_dest', 'Destination');
+        set('t_dt_visit', 'Visit CS');
+        set('t_routeResult', 'Route result');
+        set('t_dt_len', 'Distance');
+        set('t_dt_shade', 'Shade %');
+        set('t_dt_stop', 'Visit stop');
+        set('t_dt_cs_addr', 'Address');
+        set('t_dt_time', 'ETA');
+        set('t_dt_calc', 'Compute time');
+        set('t_dt_acc', 'Δ vs ref (57 CS)');
+        set('t_legend', 'Legend');
+        set('t_legend_od', 'Origin / Destination');
+        set('t_legend_cs', 'Cooling shelters (57)');
+        set('t_legend_route', 'Route');
+        set('t_csInfo', 'Cooling shelter');
+        set('t_cs_name', 'Name');
+        set('t_cs_addr', 'Address');
+        set('t_cs_open', 'Open hours');
+        set('t_cs_cap', 'Capacity');
+        set('t_cs_rest', 'Rest space');
+        set('t_cs_notes', 'Notes');
+        document.getElementById('infoVisit').textContent = 'Auto-selected during routing';
+        var st = document.getElementById('status');
+        if (st) st.textContent = 'Checking connection…';
+      } else {
+        var stJa = document.getElementById('status');
+        if (stJa) stJa.textContent = '接続確認中…';
+      }
+
+      function formatResultText(st) {
+        if (!st) return '';
+        if (!isEn) return JSON.stringify(st, null, 2);
+        var cv = st.cooling_shelter_visit || {};
+        var f = featureByCsId(cv.cs_id);
+        var base = localizeCsProps((f && f.properties) ? f.properties : { cs_id: cv.cs_id });
+        var lines = [
+          '=== Route result ===',
+          'Distance: ' + (st.path_length_geometric_m != null ? Math.round(st.path_length_geometric_m) + ' m' : '—'),
+          'Shade on path: ' + (st.mean_shadow_fraction_on_path != null ? (st.mean_shadow_fraction_on_path * 100).toFixed(1) + ' %' : '—'),
+          'ETA (walk + dwell): ' + (st.approx_time_s != null ? Math.round(st.approx_time_s / 60) + ' min' : '—'),
+          '',
+          '=== Cooling shelter visit ===',
+          'Name: ' + (cv.cs_name || base.cs_name || '—'),
+          'Address: ' + (cv.cs_address || base.address || '—'),
+          'Open hours: ' + (cv.open_time || base.open_time || '—'),
+          'Rest space: ' + (cv.rest_space || base.rest_space || '—'),
+          'Capacity: ' + (base.capacity != null && base.capacity !== '' ? base.capacity : '—'),
+          'Notes: ' + (cv.notes || base.notes || '—'),
+          'Mode: ' + (cv.mode === 'auto' ? 'Auto' : cv.mode === 'specified' ? 'Manual' : (cv.mode || '—')),
+          'CS id: ' + (cv.cs_id != null ? cv.cs_id : '—'),
+        ];
+        var ts = st.timing_s;
+        if (ts && ts.total_s != null) {
+          lines.push('', 'Compute time: ' + ts.total_s.toFixed(1) + ' s');
+        }
+        lines.push('', '--- raw JSON ---', JSON.stringify(st, null, 2));
+        return lines.join('\n');
+      }
+
+      function showVisitCsFromStats(cv) {
+        if (!cv || !cv.cs_id) return;
+        var f = featureByCsId(cv.cs_id);
+        var base = (f && f.properties) ? f.properties : { cs_id: cv.cs_id };
+        showCsInfo(Object.assign({}, base, {
+          cs_name: cv.cs_name || base.cs_name,
+          address: cv.cs_address || base.address,
+          open_time: cv.open_time || base.open_time,
+          rest_space: cv.rest_space || base.rest_space,
+          notes: cv.notes || base.notes
+        }));
+      }
+
+      // language toggle button
+      var langBtn = document.getElementById('langToggle');
+      if (langBtn) {
+        langBtn.textContent = isEn ? '日本語' : 'EN';
+        langBtn.title = isEn ? 'Switch to Japanese' : 'Switch to English';
+        langBtn.onclick = function () {
+          var u = new URL(window.location.href);
+          if (isEn) u.searchParams.delete('lang');
+          else u.searchParams.set('lang', 'en');
+          window.location.href = u.toString();
+        };
+      }
+
+      var hourSel = document.getElementById('hour');
+      for (var h = 6; h <= 18; h++) {
+        var o = document.createElement('option');
+        o.value = String(h);
+        o.textContent = isEn ? (h + ':00') : (h + ' 時');
+        if (h === 14) o.selected = true;
+        hourSel.appendChild(o);
+      }
+
+      var map = L.map('map', { zoomControl: true }).setView([36.5665, 136.6595], 14);
+      L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+        attribution: '<a href="https://maps.gsi.go.jp/copyright/ja.html" target="_blank" rel="noopener">国土地理院</a>',
+        maxZoom: 18
+      }).addTo(map);
+
+      setTimeout(function () { map.invalidateSize(); }, 100);
+      window.addEventListener('resize', function () { map.invalidateSize(); });
+
+      var mode = null;
+      var orig = null;
+      var dest = null;
+      var mOrig = null;
+      var mDest = null;
+      var lineLayer = null;
+      var csLayer = null;
+      var csFeatures = [];
+      var csEnCatalog = {};
+
+      function localizeCsProps(p) {
+        if (!p || !isEn) return p || {};
+        var cid = p.cs_id;
+        if (cid == null) return p;
+        var en = csEnCatalog[String(cid)];
+        if (!en) return p;
+        var out = Object.assign({}, p);
+        ['cs_name', 'address', 'open_time', 'rest_space', 'notes'].forEach(function (k) {
+          if (en[k] != null && String(en[k]).trim()) out[k] = en[k];
+        });
+        return out;
+      }
+
+      async function loadCsEnCatalog() {
+        if (!isEn) return;
+        try {
+          var r = await fetch(apiUrl('/static/cs_en.json'), { cache: 'no-store' });
+          if (!r.ok) return;
+          csEnCatalog = await r.json();
+        } catch (e) { /* optional fallback */ }
+      }
+
+      var btnGo = document.getElementById('btnGo');
+      var status = document.getElementById('status');
+      var out = document.getElementById('out');
+      var apiPill = document.getElementById('apiPill');
+      var lastStatusHint = '';
+
+      function fmtLatLon(p) {
+        if (!p) return isEn ? 'Not set' : '未設定';
+        return p.lat.toFixed(5) + ', ' + p.lon.toFixed(5);
+      }
+
+      function updatePointInfo() {
+        document.getElementById('infoOrig').textContent = fmtLatLon(orig);
+        document.getElementById('infoDest').textContent = fmtLatLon(dest);
+        document.getElementById('infoVisit').textContent = getVisitLabel();
+      }
+
+      function updateRouteInfo(st) {
+        var card = document.getElementById('routeCard');
+        if (!st) {
+          card.hidden = true;
+          var addrClear = document.getElementById('infoCsAddr');
+          if (addrClear) addrClear.textContent = '—';
+          return;
+        }
+        card.hidden = false;
+        document.getElementById('infoLen').textContent =
+          st.path_length_geometric_m != null
+            ? Math.round(st.path_length_geometric_m) + ' m'
+            : '—';
+        document.getElementById('infoShade').textContent =
+          st.mean_shadow_fraction_on_path != null
+            ? ((st.mean_shadow_fraction_on_path * 100).toFixed(1) + ' %'
+              + (st.tree_shade && st.tree_shade.tree_shade_applied
+                ? (isEn ? ' (incl. trees)' : '（樹木含む）')
+                : ''))
+            : '—';
+        var cv = st.cooling_shelter_visit || {};
+        var cvBase = localizeCsProps({ cs_id: cv.cs_id, cs_name: cv.cs_name, address: cv.cs_address, open_time: cv.open_time, rest_space: cv.rest_space, notes: cv.notes });
+        document.getElementById('infoCsName').textContent =
+          cvBase.cs_name
+            ? (isEn
+                ? (cvBase.cs_name + (cv.mode === 'auto' ? ' (Auto)' : ' (Manual)'))
+                : (cvBase.cs_name + (cv.mode === 'auto' ? '（自動）' : '（手動）')))
+            : '—';
+        var addrEl = document.getElementById('infoCsAddr');
+        if (addrEl) {
+          addrEl.textContent = cvBase.address || '—';
+        }
+        var acc = st.accuracy_vs_reference;
+        var accEl = document.getElementById('infoAccuracy');
+        if (accEl) {
+          if (acc && acc.path_cost_total) {
+            var same = isEn ? (acc.same_cs ? 'Same CS' : 'CS changed') : (acc.same_cs ? '同一CS' : 'CS変更');
+            var dp = acc.path_cost_total.delta_pct;
+            accEl.textContent = same + (dp != null ? (isEn ? ' · Cost Δ ' : ' · コストΔ ') + dp.toFixed(2) + '%' : '');
+          } else {
+            accEl.textContent = '—';
+          }
+        }
+        document.getElementById('infoTime').textContent =
+          st.approx_time_s != null
+            ? Math.round(st.approx_time_s / 60) + (isEn ? ' min' : ' 分')
+            : '—';
+        if (cvBase.cs_name) {
+          document.getElementById('infoVisit').textContent = cvBase.cs_name;
+        }
+        showVisitCsFromStats(Object.assign({}, cv, {
+          cs_name: cvBase.cs_name,
+          cs_address: cvBase.address,
+          open_time: cvBase.open_time,
+          rest_space: cvBase.rest_space,
+          notes: cvBase.notes
+        }));
+        var ts = st.timing_s;
+        var calcEl = document.getElementById('infoCalcTime');
+        if (ts && ts.total_s != null) {
+          var ttxt = ts.total_s.toFixed(1) + (isEn ? ' s' : ' 秒');
+          if (st.graph_cached) ttxt += isEn ? ' (cached)' : '（再利用）';
+          else if (st.graph_load_source === 'disk') ttxt += isEn ? ' (OSM disk)' : '（OSM ディスク）';
+          calcEl.textContent = ttxt;
+        } else {
+          calcEl.textContent = '—';
+        }
+      }
+
+      function setApiPill(online) {
+        apiPill.textContent = online ? (isEn ? 'API online' : 'API 接続中') : (isEn ? 'API offline' : 'API 未接続');
+        apiPill.className = 'api-pill' + (online ? ' ok' : ' err');
+      }
+
+      function setStatus(text, cls) {
+        lastStatusHint = text;
+        status.textContent = text;
+        status.className = 'status' + (cls ? ' ' + cls : '');
+      }
+
+      function collectFactors() {
+        return {
+          use_distance: document.getElementById('f_dist').checked,
+          use_time: document.getElementById('f_time').checked,
+          use_slope: document.getElementById('f_slope').checked,
+          use_shadow: document.getElementById('f_shadow').checked,
+          include_tree_shade: SYSTEM_NEW,
+          use_cooling_shelter: true,
+          weight_distance: parseFloat(document.getElementById('w_dist').value),
+          weight_time: parseFloat(document.getElementById('w_time').value),
+          weight_slope: parseFloat(document.getElementById('w_slope').value),
+          weight_shadow: parseFloat(document.getElementById('w_shadow').value),
+          weight_cooling_shelter: parseFloat(document.getElementById('w_cs').value),
+          walk_speed_m_s: parseFloat(document.getElementById('walkSpeed').value),
+          prefer_shade: document.getElementById('f_shadow').checked,
+          cs_dwell_time_s: parseFloat(document.getElementById('csDwell').value)
+        };
+      }
+
+      function visitCsIdPayload() {
+        var v = document.getElementById('csVisit').value;
+        if (!v || v === 'auto') return null;
+        return parseInt(v, 10);
+      }
+
+      function factorActive(f) {
+        return f.use_distance || f.use_time || f.use_slope || f.use_shadow;
+      }
+
+      function updateGoButton() {
+        btnGo.disabled = !(orig && dest);
+      }
+
+      function getVisitLabel() {
+        var v = document.getElementById('csVisit').value;
+        if (!v || v === 'auto') return isEn ? 'Auto-selected during routing' : '自動選定（計算時）';
+        var f = featureByCsId(v);
+        if (f) return (f.properties.cs_name || 'CS') + (isEn ? ' (Manual)' : '（手動）');
+        return (isEn ? 'Manual: id ' : '手動: id ') + v;
+      }
+
+      function setManualVisit(csId) {
+        document.getElementById('csVisit').value = String(csId);
+        updatePointInfo();
+      }
+
+      function clearPickMode() {
+        mode = null;
+        document.getElementById('btnOrig').classList.remove('active');
+        document.getElementById('btnDest').classList.remove('active');
+        document.getElementById('btnVisit').classList.remove('active');
+      }
+
+      function resetVisitToAuto() {
+        document.getElementById('csVisit').value = 'auto';
+        updatePointInfo();
+      }
+
+      function togglePickMode(next) {
+        if (mode === next) {
+          clearPickMode();
+          setStatus(isEn ? 'Pick mode cleared.' : '指定モードを解除しました。', 'ok');
+          return;
+        }
+        mode = next;
+        var btnOrig = document.getElementById('btnOrig');
+        var btnDest = document.getElementById('btnDest');
+        var btnVisit = document.getElementById('btnVisit');
+        btnOrig.classList.remove('active');
+        btnDest.classList.remove('active');
+        btnVisit.classList.remove('active');
+        if (next === 'orig') {
+          btnOrig.classList.add('active');
+          setStatus(isEn ? 'Tap map to set origin (toggle with ①)' : '地図で起点をタップ（①で解除）', 'ok');
+        } else if (next === 'dest') {
+          btnDest.classList.add('active');
+          setStatus(isEn ? 'Tap map to set destination (toggle with ②)' : '地図で終点をタップ（②で解除）', 'ok');
+        } else if (next === 'visit') {
+          btnVisit.classList.add('active');
+          setStatus(isEn ? 'Tap a CS marker to set visit stop (toggle with ③)' : '地図の CS（青丸）をタップして立ち寄り先を指定（③で解除）', 'ok');
+        }
+      }
+
+      function setDestFromLatLon(lat, lon, label) {
+        dest = { lat: lat, lon: lon };
+        if (mDest) map.removeLayer(mDest);
+        mDest = L.marker([lat, lon]).addTo(map).bindPopup(label || (isEn ? 'Destination' : '終点')).openPopup();
+        updateGoButton();
+        updatePointInfo();
+      }
+
+      function showCsInfo(p) {
+        var card = document.getElementById('csCard');
+        if (!card) return;
+        card.hidden = false;
+        p = localizeCsProps(p || {});
+        document.getElementById('csInfoName').textContent = (p.cs_name || '—');
+        document.getElementById('csInfoAddr').textContent = (p.address || '—');
+        document.getElementById('csInfoOpen').textContent = (p.open_time || '—');
+        document.getElementById('csInfoCap').textContent = (p.capacity != null && p.capacity !== '' ? String(p.capacity) : '—');
+        var restEl = document.getElementById('csInfoRest');
+        if (restEl) restEl.textContent = (p.rest_space || '—');
+        document.getElementById('csInfoNotes').textContent = (p.notes || '—');
+      }
+
+      function csPopupHtml(p) {
+        p = localizeCsProps(p || {});
+        var esc = function (s) {
+          return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        };
+        var rows = [];
+        rows.push('<div style=\"font-size:0.78rem;line-height:1.35\">');
+        rows.push('<div style=\"font-weight:700;margin-bottom:4px\">' + esc(p.cs_name || '') + '</div>');
+        if (p.address) rows.push('<div><span style=\"color:#546e7a\">' + (isEn ? 'Address' : '住所') + ':</span> ' + esc(p.address) + '</div>');
+        if (p.open_time) rows.push('<div><span style=\"color:#546e7a\">' + (isEn ? 'Open hours' : '開館') + ':</span> ' + esc(p.open_time) + '</div>');
+        if (p.capacity != null && p.capacity !== '') rows.push('<div><span style=\"color:#546e7a\">' + (isEn ? 'Capacity' : '定員') + ':</span> ' + esc(p.capacity) + '</div>');
+        if (p.rest_space) rows.push('<div><span style=\"color:#546e7a\">' + (isEn ? 'Rest space' : '休憩') + ':</span> ' + esc(p.rest_space) + '</div>');
+        if (p.notes) rows.push('<div><span style=\"color:#546e7a\">' + (isEn ? 'Notes' : '備考') + ':</span> ' + esc(p.notes) + '</div>');
+        rows.push('</div>');
+        return rows.join('');
+      }
+
+      function featureByCsId(id) {
+        for (var i = 0; i < csFeatures.length; i++) {
+          var p = csFeatures[i].properties || {};
+          if (String(p.cs_id) === String(id)) return csFeatures[i];
+        }
+        return null;
+      }
+
+      document.getElementById('csDest').onchange = function () {
+        if (this.value === '') return;
+        var f = featureByCsId(this.value);
+        if (!f) return;
+        var c = f.geometry.coordinates;
+        var p = f.properties || {};
+        setDestFromLatLon(c[1], c[0], p.cs_name || 'CS');
+        showCsInfo(p);
+        setStatus((isEn ? 'Destination: ' : '終点: ') + (p.cs_name || 'CS'), 'ok');
+      };
+
+      async function loadCoolingShelters() {
+        var r = await fetch(apiUrl('/api/cooling-shelters?lang=' + (isEn ? 'en' : 'ja')));
+        var j = await r.json();
+        if (!r.ok) throw new Error(j.detail || 'CS load failed');
+        csFeatures = (j.features || []).map(function (f) {
+          var feat = Object.assign({}, f);
+          feat.properties = localizeCsProps(f.properties || {});
+          return feat;
+        });
+        var sel = document.getElementById('csDest');
+        sel.innerHTML = '<option value=\"\">' + (isEn ? '— Destination from CS list —' : '— 終点 CS —') + '</option>';
+        csFeatures.forEach(function (f) {
+          var p = f.properties || {};
+          var o = document.createElement('option');
+          o.value = String(p.cs_id != null ? p.cs_id : '');
+          o.textContent = (p.cs_name || 'CS');
+          sel.appendChild(o);
+        });
+        if (csLayer) map.removeLayer(csLayer);
+        csLayer = L.layerGroup();
+        csFeatures.forEach(function (feat) {
+          var p = feat.properties || {};
+          var c = feat.geometry.coordinates;
+          var m = L.circleMarker([c[1], c[0]], {
+            radius: 5, color: '#01579b', fillColor: '#4fc3f7', fillOpacity: 0.8, weight: 1
+          });
+          m.bindPopup(csPopupHtml(p), { maxWidth: 340 });
+          if (p.cs_name) {
+            m.bindTooltip(String(p.cs_name), { direction: 'top', offset: [0, -6], opacity: 0.9 });
+          }
+          m.on('click', function () {
+            showCsInfo(p);
+            if (mode === 'visit') {
+              setManualVisit(p.cs_id);
+              clearPickMode();
+              setStatus((isEn ? 'Visit: ' : '立ち寄り: ') + '"' + (p.cs_name || 'CS') + '"', 'ok');
+              return;
+            }
+            document.getElementById('csDest').value = String(p.cs_id);
+            setDestFromLatLon(c[1], c[0], p.cs_name);
+            setStatus((isEn ? 'Destination: ' : '終点: ') + (isEn ? 'CS ' : 'CS「') + (p.cs_name || '') + (isEn ? '' : '」'), 'ok');
+          });
+          csLayer.addLayer(m);
+        });
+        csLayer.addTo(map);
+      }
+
+      var apiOnline = false;
+
+      async function pingHealth() {
+        try {
+          var r = await fetch(apiUrl('/api/health'), { cache: 'no-store' });
+          if (!r.ok) return false;
+          await r.json();
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      async function loadMetaOnce() {
+        try {
+          var mr = await fetch(apiUrl('/api/meta?year=2026'), { cache: 'no-store' });
+          if (!mr.ok) return;
+          var m = await mr.json();
+          hourSel.innerHTML = '';
+          m.hours.forEach(function (hr) {
+            var o = document.createElement('option');
+            o.value = String(hr);
+            o.textContent = isEn ? (hr + ':00') : (hr + ' 時');
+            if (hr === 14) o.selected = true;
+            hourSel.appendChild(o);
+          });
+          var rd = document.getElementById('routeDate');
+          rd.min = m.date_start;
+          rd.max = m.date_end;
+        } catch (e2) { /* ignore */ }
+      }
+
+      async function probeServer(fullInit) {
+        var ok = await pingHealth();
+        setApiPill(ok);
+        if (!ok) {
+          apiOnline = false;
+          var hint = window.location.protocol === 'file:'
+            ? ((isEn ? 'Cannot reach API at ' : 'API未接続: ') + API_BASE + (isEn ? '. Start: uvicorn integrated.app:app --port 8766' : ''))
+            : (isEn ? 'API offline. Start: uvicorn integrated.app:app --port 8766' : 'API 未接続。uvicorn integrated.app:app --port 8766');
+          setStatus(hint, 'err');
+          return;
+        }
+        apiOnline = true;
+        if (fullInit) {
+          try {
+            await loadCsEnCatalog();
+            await loadCoolingShelters();
+            await loadMetaOnce();
+            setStatus(isEn ? 'Ready. Set origin and destination in the left panel.' : '準備完了。左メニューで起点・終点を指定してください。', 'ok');
+          } catch (e) {
+            apiOnline = false;
+            setApiPill(false);
+            setStatus((isEn ? 'Failed to load data: ' : 'データ読み込み失敗: ') + e.message, 'err');
+          }
+        }
+      }
+
+      probeServer(true);
+      setInterval(function () {
+        pingHealth().then(function (ok) {
+          setApiPill(ok);
+          if (ok && !apiOnline) probeServer(true);
+          else if (!ok && apiOnline) {
+            apiOnline = false;
+            setStatus(isEn ? 'API disconnected' : 'API 切断', 'err');
+          }
+          else if (ok) apiOnline = true;
+        });
+      }, 15000);
+
+      function clearMarkers() {
+        if (mOrig) { map.removeLayer(mOrig); mOrig = null; }
+        if (mDest) { map.removeLayer(mDest); mDest = null; }
+        if (lineLayer) { map.removeLayer(lineLayer); lineLayer = null; }
+        orig = null;
+        dest = null;
+        clearPickMode();
+        document.getElementById('csDest').value = '';
+        resetVisitToAuto();
+        updateGoButton();
+        updatePointInfo();
+        updateRouteInfo(null);
+        out.hidden = true;
+        setStatus(isEn ? 'Points cleared.' : '地点をクリアしました。', 'ok');
+      }
+
+      document.getElementById('btnOrig').onclick = function () { togglePickMode('orig'); };
+      document.getElementById('btnDest').onclick = function () { togglePickMode('dest'); };
+      document.getElementById('btnVisit').onclick = function () { togglePickMode('visit'); };
+      document.getElementById('btnReset').onclick = clearMarkers;
+      document.getElementById('btnResetVisit').onclick = function () {
+        resetVisitToAuto();
+        setStatus(isEn ? 'Visit CS reset to Auto.' : '立ち寄りを自動選定に戻しました。', 'ok');
+      };
+
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape' && mode) {
+          clearPickMode();
+          setStatus(isEn ? 'Pick mode cleared (Esc).' : '地点指定を解除（Esc）', 'ok');
+        }
+      });
+
+      map.on('click', function (e) {
+        if (!mode) {
+          setStatus(isEn ? 'Press ①, ②, or ③ first.' : '先に ① ② ③ のいずれかを押してください。', 'err');
+          return;
+        }
+        if (mode === 'visit') {
+          setStatus(isEn ? 'Tap a CS marker (blue dot) on the map for visit stop.' : '立ち寄りは地図上の CS（青丸）をタップしてください。', 'err');
+          return;
+        }
+        var lat = e.latlng.lat;
+        var lon = e.latlng.lng;
+        if (mode === 'orig') {
+          orig = { lat: lat, lon: lon };
+          if (mOrig) map.removeLayer(mOrig);
+          mOrig = L.marker([lat, lon]).addTo(map).bindPopup(isEn ? 'Origin' : '起点').openPopup();
+          setStatus(isEn ? 'Origin set' : '起点を設定', 'ok');
+        } else {
+          document.getElementById('csDest').value = '';
+          setDestFromLatLon(lat, lon, isEn ? 'Destination' : '終点');
+          setStatus(isEn ? 'Destination set' : '終点を設定', 'ok');
+        }
+        clearPickMode();
+        updatePointInfo();
+        updateGoButton();
+      });
+
+      btnGo.onclick = async function () {
+        if (!orig || !dest) return;
+        if (!apiOnline) {
+          setStatus(isEn ? 'API offline' : 'API 未接続', 'err');
+          return;
+        }
+        btnGo.disabled = true;
+        setStatus(isEn ? 'Computing route… (first run may take ~30s)' : 'ルート計算中…（初回は数十秒）', '');
+        out.hidden = true;
+        try {
+          var factors = collectFactors();
+          if (!factorActive(factors)) {
+            setStatus(isEn ? 'Enable Distance, Time, Slope, or Shade.' : '距離・時間・勾配・日陰のいずれかをオンに', 'err');
+            return;
+          }
+          var r = await fetch(apiUrl('/api/route_latlon'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orig_lat: orig.lat, orig_lon: orig.lon,
+              dest_lat: dest.lat, dest_lon: dest.lon,
+              route_date: document.getElementById('routeDate').value,
+              hour: parseInt(hourSel.value, 10),
+              year: 2026,
+              visit_cs_id: visitCsIdPayload(),
+              compare_accuracy: document.getElementById('f_compareAccuracy').checked,
+              lang: isEn ? 'en' : 'ja',
+              factors: factors
+            })
+          });
+          var j = await r.json();
+          if (!r.ok) {
+            setStatus((isEn ? 'Error: ' : 'エラー: ') + (j.detail || JSON.stringify(j)), 'err');
+            out.hidden = false;
+            out.textContent = JSON.stringify(j, null, 2);
+            return;
+          }
+          var st = j.stats || {};
+          updateRouteInfo(st);
+          updatePointInfo();
+          var cv = st.cooling_shelter_visit;
+          var msg = isEn ? 'Route displayed' : 'ルート表示完了';
+          if (cv && cv.cs_name) msg += isEn ? ' · Visit ' + cv.cs_name : ' · 立ち寄り ' + cv.cs_name;
+          var ts = st.timing_s;
+          if (ts && ts.total_s != null) {
+            msg += isEn ? ' · Compute ' + ts.total_s.toFixed(1) + ' s' : ' · 計算 ' + ts.total_s.toFixed(1) + ' 秒';
+            if (st.graph_cached) msg += isEn ? ' (cached graph)' : '（グラフ再利用）';
+          else if (st.graph_load_source === 'disk') msg += isEn ? ' (OSM disk)' : '（OSM ディスク）';
+          }
+          setStatus(msg, 'ok');
+          out.hidden = false;
+          out.textContent = formatResultText(st);
+          if (lineLayer) map.removeLayer(lineLayer);
+          var latlngs = j.coordinates_latlon.map(function (p) { return [p[0], p[1]]; });
+          lineLayer = L.polyline(latlngs, { color: ROUTE_COLOR, weight: 7, opacity: 0.92 }).addTo(map);
+          map.fitBounds(lineLayer.getBounds(), { padding: [48, 48], maxZoom: 17 });
+        } catch (e) {
+          setStatus((isEn ? 'Request failed: ' : '通信失敗: ') + e.message, 'err');
+        } finally {
+          updateGoButton();
+        }
+      };
+
+      updatePointInfo();
+    })();
+  </script>
+</body>
+</html>

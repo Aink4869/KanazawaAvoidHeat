@@ -1,0 +1,401 @@
+{
+  "1": {
+    "cs_name": "Kanazawa City Hall — Main Building",
+    "address": "1-1-1 Hirozaka, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 9:00–17:45",
+    "rest_space": "",
+    "notes": "Closed on public holidays"
+  },
+  "2": {
+    "cs_name": "Kanazawa City Hall — Second Building",
+    "address": "1-1-1 Kakinokibatake, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 9:00–17:45",
+    "rest_space": "",
+    "notes": "Closed on public holidays"
+  },
+  "3": {
+    "cs_name": "Ekimae-Nishi Welfare & Health Center",
+    "address": "3-4-25 Nishinen, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 8:30–17:15",
+    "rest_space": "",
+    "notes": "Closed on public holidays"
+  },
+  "4": {
+    "cs_name": "Izumino Welfare & Health Center",
+    "address": "1-2-22 Izumigaoka, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 8:30–17:15",
+    "rest_space": "",
+    "notes": "Closed on public holidays"
+  },
+  "5": {
+    "cs_name": "Motomachi Welfare & Health Center",
+    "address": "1-12-12 Motomachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 8:30–17:15",
+    "rest_space": "",
+    "notes": "Closed on public holidays"
+  },
+  "6": {
+    "cs_name": "Kanazawa Health Plaza Otemachi East Wing",
+    "address": "3-21 Otemachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 9:00–17:00",
+    "rest_space": "",
+    "notes": "Closed on public holidays"
+  },
+  "7": {
+    "cs_name": "Kanazawa Umimirai Library",
+    "address": "Terachumachi I-1, Kanazawa, Ishikawa",
+    "open_time": "Mon, Tue, Thu, Fri 10:00–19:00 / 土日祝 10:00–17:00",
+    "rest_space": "",
+    "notes": "Opens 9:30 from Jul 19–Aug 31・水曜祝日は開館"
+  },
+  "8": {
+    "cs_name": "Izumino Library",
+    "address": "4-22-22 Izuminocho, Kanazawa, Ishikawa",
+    "open_time": "Mon, Wed, Thu, Fri 10:00–19:00 / 土日祝 10:00–17:00",
+    "rest_space": "",
+    "notes": "Opens 9:30 from Jul 19–Aug 31・Open if Tue is a holiday"
+  },
+  "9": {
+    "cs_name": "Johoku Children's Hall",
+    "address": "8-11 Kosakamachi-Nishi, Kanazawa, Ishikawa",
+    "open_time": "Tue–Sun 9:30–18:00",
+    "rest_space": "",
+    "notes": "Closed Mon and public holidays"
+  },
+  "10": {
+    "cs_name": "Kanazawa Student Town Civic Exchange Hall",
+    "address": "2-5-17 Katamachi, Kanazawa, Ishikawa",
+    "open_time": "Tue–Sun 10:00–22:00",
+    "rest_space": "",
+    "notes": "Open if Mon is a holiday; closed the following weekday"
+  },
+  "11": {
+    "cs_name": "Omicho Exchange Plaza",
+    "address": "88 Aosugimachi, Kanazawa, Ishikawa",
+    "open_time": "Mon, Tue, Thu–Sun 10:00–18:00",
+    "rest_space": "",
+    "notes": "Open if Wed is a holiday; closed the following weekday"
+  },
+  "12": {
+    "cs_name": "Kanazawa Pool",
+    "address": "Ha-55 Isobemachi, Kanazawa, Ishikawa",
+    "open_time": "9:00–21:00",
+    "rest_space": "",
+    "notes": "Except days without public access (Jul 5–6, 14, 26–27, 29; Aug 18, 25; Sep 1, 8, 16, 22, 29)"
+  },
+  "13": {
+    "cs_name": "Narutodai Civic Gymnasium",
+    "address": "285 Narutodai, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 9:00–21:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "14": {
+    "cs_name": "Ishikawa Prefectural Government (19F Observatory Lobby)",
+    "address": "1-1 Kuratsuki, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–20:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "15": {
+    "cs_name": "Ishikawa Prefectural Library",
+    "address": "2-43-1 Kodatsuno, Kanazawa, Ishikawa",
+    "open_time": "Tue–Sun 閲覧9:00–19:00 / 文化交流9:00–21:00",
+    "rest_space": "",
+    "notes": "Includes library users in capacity count"
+  },
+  "16": {
+    "cs_name": "Nagadobe Youth Exchange Center",
+    "address": "3-3-3 Nagamachi, Kanazawa, Ishikawa",
+    "open_time": "Tue–Sun 9:00–21:00",
+    "rest_space": "",
+    "notes": "Open if Mon is a holiday; closed the next day"
+  },
+  "17": {
+    "cs_name": "West District Civic Rest House",
+    "address": "Ha-256 Torikemachi, Kanazawa, Ishikawa",
+    "open_time": "Mon, Tue, Thu, Sat 9:00–21:00 / 日祝 9:00–19:00",
+    "rest_space": "",
+    "notes": "Closed Wed"
+  },
+  "18": {
+    "cs_name": "Shojusou",
+    "address": "3-3-33 Kanaokita 3-chome, Kanazawa, Ishikawa",
+    "open_time": "9:00–17:00",
+    "rest_space": "",
+    "notes": "Closed on designated days"
+  },
+  "19": {
+    "cs_name": "Kakujuen",
+    "address": "Nu-1 Nukatani-cho, Kanazawa, Ishikawa",
+    "open_time": "9:00–16:00",
+    "rest_space": "",
+    "notes": "Closed on designated days"
+  },
+  "20": {
+    "cs_name": "Kanazawa Mirai Town Creation Hall",
+    "address": "3-11-1 Nomachi, Kanazawa, Ishikawa",
+    "open_time": "9:00–21:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "21": {
+    "cs_name": "Monozukuri Hall",
+    "address": "4-80-1 Awagasakimachi, Kanazawa, Ishikawa",
+    "open_time": "9:00–21:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "22": {
+    "cs_name": "Agricultural Center",
+    "address": "Higashi1471 Shimyasuhamacho, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 8:30–17:00",
+    "rest_space": "",
+    "notes": "Closed Sat, Sun and public holidays"
+  },
+  "23": {
+    "cs_name": "Central Community Center Hikoso Branch",
+    "address": "1-15-5 Hikoso 1-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sat 9:00–21:00 / 日 9:00–17:00",
+    "rest_space": "",
+    "notes": "Closed on public holidays"
+  },
+  "24": {
+    "cs_name": "Education Plaza Tomikichi",
+    "address": "3-10-1 Tomikichi 3-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 9:00–21:00",
+    "rest_space": "Building 1, 1st floor space",
+    "notes": ""
+  },
+  "25": {
+    "cs_name": "Tomuro Recycle Plaza",
+    "address": "Ha-604 Tomuro-Shimbo, Kanazawa, Ishikawa",
+    "open_time": "Tue–Sun 9:00–17:00",
+    "rest_space": "",
+    "notes": "Open if Mon is a holiday; closed the following weekday"
+  },
+  "26": {
+    "cs_name": "Kanazawa Workers' Plaza",
+    "address": "3-2-20 Kita-Yasue, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 9:00–17:00",
+    "rest_space": "",
+    "notes": "第1火曜・お盆休館"
+  },
+  "27": {
+    "cs_name": "Senjukan",
+    "address": "2-1 Higashinagaecho-be, Kanazawa, Ishikawa",
+    "open_time": "Mon, Tue, Thu–Sun 9:00–17:00",
+    "rest_space": "1st floor lobby",
+    "notes": "No food or drinks"
+  },
+  "28": {
+    "cs_name": "Kanazawa Central Tourist Information Center",
+    "address": "4-1 Minamimachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–21:00",
+    "rest_space": "",
+    "notes": "Kanazawa New Grand Bldg, 1st floor"
+  },
+  "29": {
+    "cs_name": "Kanazawa Port Cruise Terminal",
+    "address": "Ri-65 Muryojimachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 9:00–21:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "30": {
+    "cs_name": "Ishikawa Children's Exchange Center",
+    "address": "11-8 Hojima-cho, Kanazawa, Ishikawa",
+    "open_time": "Tue–Sun 9:00–17:00",
+    "rest_space": "",
+    "notes": "館内No food or drinks（水分補給のみ可）・月曜祝日は開館翌日休館"
+  },
+  "31": {
+    "cs_name": "Kanazawa Castle Park — Tsurunomaru Rest Hall",
+    "address": "1-1 Marunouchi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 7:00–18:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "32": {
+    "cs_name": "Kanazawa Castle Park — Rest House Gyokusen-an",
+    "address": "1-1 Marunouchi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 7:00–18:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "33": {
+    "cs_name": "Kanazawa Castle Park — Ishikawa Gate Entrance Rest Area",
+    "address": "1-1 Marunouchi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 7:00–18:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "34": {
+    "cs_name": "Ishikawa Eco House",
+    "address": "2-1 Kuratsuki 2-chome, Kanazawa, Ishikawa",
+    "open_time": "9:00–17:00",
+    "rest_space": "",
+    "notes": "Priority for visitors on tours"
+  },
+  "35": {
+    "cs_name": "Kanazawa Welfare Equipment Information Plaza",
+    "address": "1-10-1 Honmachi 1-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon, Wed, Thu, Fri土日 10:00–19:00",
+    "rest_space": "",
+    "notes": "Open if Tue is a holiday・翌日休館"
+  },
+  "36": {
+    "cs_name": "Nishi Chaya Tourist Parking",
+    "address": "2-25-1 Nomachi 2-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 7:30–22:00",
+    "rest_space": "",
+    "notes": ""
+  },
+  "37": {
+    "cs_name": "21st Century Museum of Contemporary Art, Kanazawa",
+    "address": "1-2-1 Hirozaka, Kanazawa, Ishikawa",
+    "open_time": "Open daily during the program period 9:00–22:00",
+    "rest_space": "",
+    "notes": "館内No food or drinks（交流ゾーンのみ水分補給可）"
+  },
+  "38": {
+    "cs_name": "Welcia Kanazawa Gaku Shinbo Store",
+    "address": "3-188 Gaku Shinbo 3-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–18:00",
+    "rest_space": "Wel Cafe",
+    "notes": ""
+  },
+  "39": {
+    "cs_name": "Welcia Kanazawa Shin-hombo Store",
+    "address": "3-152-1 Shin-hombo 3-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–18:00",
+    "rest_space": "Wel Cafe",
+    "notes": ""
+  },
+  "40": {
+    "cs_name": "Welcia Pharmacy Kanazawa Shin-hombo",
+    "address": "3-152-1 Shin-hombo 3-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–13:00 / 14:00–17:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "41": {
+    "cs_name": "Welcia Kanazawa Naoe Store",
+    "address": "Minami1-44 Naoe, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–18:00",
+    "rest_space": "Wel Cafe",
+    "notes": ""
+  },
+  "42": {
+    "cs_name": "Welcia Pharmacy Kanazawa Naoe",
+    "address": "Minami1-44 Naoe, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "43": {
+    "cs_name": "Welcia Kanazawa Kibiyano Store",
+    "address": "4-223 Kibiyano 4-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–18:00",
+    "rest_space": "Wel Cafe",
+    "notes": ""
+  },
+  "44": {
+    "cs_name": "Welcia Pharmacy Kanazawa Kibiyano",
+    "address": "4-223 Kibiyano 4-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "45": {
+    "cs_name": "Welcia Pharmacy Kanazawa Miiike",
+    "address": "312 Miiike Sakae-cho, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "46": {
+    "cs_name": "Welcia Pharmacy Kanazawa Shijuman",
+    "address": "4-228 Shijuman 4-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–14:00 / 15:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "47": {
+    "cs_name": "Welcia Pharmacy Kanazawa Izumicho",
+    "address": "I-222 Izumicho, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "48": {
+    "cs_name": "Welcia Pharmacy Kanazawa Okuwa",
+    "address": "2-47 Okuwa 2-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "49": {
+    "cs_name": "Welcia Pharmacy Kanazawa Suemachi",
+    "address": "16-12-1 Suemachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–14:00 / 15:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "50": {
+    "cs_name": "Welcia Pharmacy Kanazawa Arimatsu",
+    "address": "4-13-13 Arimatsu 4-chome, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 10:00–14:00 / 15:00–18:00",
+    "rest_space": "Pharmacy waiting area",
+    "notes": ""
+  },
+  "51": {
+    "cs_name": "AEON Morinosato Store",
+    "address": "1-70 Morinosato, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 9:00–22:00",
+    "rest_space": "1st floor community plaza",
+    "notes": ""
+  },
+  "52": {
+    "cs_name": "AEON Town Kanazawa Shikino",
+    "address": "1-55 Toita-Nishi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–21:00",
+    "rest_space": "MaxValu wing shared corridor",
+    "notes": "12 three-seat benches"
+  },
+  "53": {
+    "cs_name": "Meiji Yasuda Village Kanazawa",
+    "address": "4-47 Minamimachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:30–17:00",
+    "rest_space": "Multipurpose space",
+    "notes": "Except event days・No meals・No parking"
+  },
+  "54": {
+    "cs_name": "Arukafe",
+    "address": "1-20-20 Zosen, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 8:30–17:00",
+    "rest_space": "Community space",
+    "notes": "祝日等除く・Meals allowed 11:30–13:30"
+  },
+  "55": {
+    "cs_name": "Kanazawa Forus",
+    "address": "3-1 Horikawa-Shinmachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–20:00",
+    "rest_space": "Seating areas on each floor",
+    "notes": ""
+  },
+  "56": {
+    "cs_name": "Class Place Korinbo (Museum Shop & Café KAMU kanazawa)",
+    "address": "2-1-1 Korinbo, Kanazawa, Ishikawa",
+    "open_time": "Mon–Sun 10:00–20:00",
+    "rest_space": "Museum Shop & Café open space",
+    "notes": ""
+  },
+  "57": {
+    "cs_name": "Orange Heart Laundry Ake-myomachi",
+    "address": "1-240 Akemyomachi, Kanazawa, Ishikawa",
+    "open_time": "Mon–Fri 8:45–17:45",
+    "rest_space": "Inside the laundry",
+    "notes": ""
+  }
+}
