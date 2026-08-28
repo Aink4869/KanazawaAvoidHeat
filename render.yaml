@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: kanazawa-avoid-heat
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SHADOW_MODEL
+        value: geometry

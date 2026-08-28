@@ -1,0 +1,1088 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.657074,
+          36.561703
+        ]
+      },
+      "properties": {
+        "cs_id": 1,
+        "cs_name": "市役所第一本庁舎",
+        "address": "石川県金沢市広坂1丁目1番1号",
+        "open_time": "月～金 9:00～17:45",
+        "capacity": 12,
+        "rest_space": NaN,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.656891,
+          36.559978
+        ]
+      },
+      "properties": {
+        "cs_id": 2,
+        "cs_name": "市役所第二本庁舎",
+        "address": "石川県金沢市柿木畠1番1号",
+        "open_time": "月～金 9:00～17:45",
+        "capacity": 12,
+        "rest_space": NaN,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.63504,
+          36.590153
+        ]
+      },
+      "properties": {
+        "cs_id": 3,
+        "cs_name": "駅西福祉健康センター",
+        "address": "石川県金沢市西念3丁目4番25号",
+        "open_time": "月～金 8:30～17:15",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.648804,
+          36.544186
+        ]
+      },
+      "properties": {
+        "cs_id": 4,
+        "cs_name": "泉野福祉健康センター",
+        "address": "石川県金沢市泉が丘1丁目2番22号",
+        "open_time": "月～金 8:30～17:15",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.666794,
+          36.58168
+        ]
+      },
+      "properties": {
+        "cs_id": 5,
+        "cs_name": "元町福祉健康センター",
+        "address": "石川県金沢市元町1丁目12番12号",
+        "open_time": "月～金 8:30～17:15",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.661316,
+          36.568535
+        ]
+      },
+      "properties": {
+        "cs_id": 6,
+        "cs_name": "金沢健康プラザ大手町東館",
+        "address": "石川県金沢市大手町3番21号",
+        "open_time": "月～日 9:00～17:00",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.604202,
+          36.594593
+        ]
+      },
+      "properties": {
+        "cs_id": 7,
+        "cs_name": "金沢海みらい図書館",
+        "address": "石川県金沢市寺中町イ1番地1",
+        "open_time": "月火木金 10:00～19:00／土日祝 10:00～17:00",
+        "capacity": 13,
+        "rest_space": NaN,
+        "notes": "7/19～8/31は9:30開館・水曜祝日は開館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.649673,
+          36.543987
+        ]
+      },
+      "properties": {
+        "cs_id": 8,
+        "cs_name": "泉野図書館",
+        "address": "石川県金沢市泉野町4丁目22番22号",
+        "open_time": "月水木金 10:00～19:00／土日祝 10:00～17:00",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": "7/19～8/31は9:30開館・火曜祝日は開館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.670303,
+          36.589951
+        ]
+      },
+      "properties": {
+        "cs_id": 9,
+        "cs_name": "城北児童会館",
+        "address": "石川県金沢市小坂町西8-11",
+        "open_time": "火～日 9:30～18:00",
+        "capacity": 12,
+        "rest_space": NaN,
+        "notes": "月・祝休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.651932,
+          36.56123
+        ]
+      },
+      "properties": {
+        "cs_id": 10,
+        "cs_name": "金沢学生のまち市民交流館",
+        "address": "石川県金沢市片町2丁目5番17号",
+        "open_time": "火～日 10:00～22:00",
+        "capacity": 8,
+        "rest_space": NaN,
+        "notes": "月曜祝日は開館・直後の平日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.656036,
+          36.571659
+        ]
+      },
+      "properties": {
+        "cs_id": 11,
+        "cs_name": "近江町交流プラザ",
+        "address": "石川県金沢市青草町88番地",
+        "open_time": "月火木～日 10:00～18:00",
+        "capacity": 10,
+        "rest_space": NaN,
+        "notes": "水曜祝日は開館・直後の平日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659485,
+          36.597721
+        ]
+      },
+      "properties": {
+        "cs_id": 12,
+        "cs_name": "金沢プール",
+        "address": "石川県金沢市磯部町ハ55番地",
+        "open_time": "9:00～21:00",
+        "capacity": 16,
+        "rest_space": NaN,
+        "notes": "一般開放がない日(7/5・6・14・26・27・29、8/18・25、9/1・8・16・22・29)除く"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.679016,
+          36.577068
+        ]
+      },
+      "properties": {
+        "cs_id": 13,
+        "cs_name": "鳴和台市民体育会館",
+        "address": "石川県金沢市鳴和台285番地",
+        "open_time": "月～日 9:00～21:00",
+        "capacity": 23,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.625351,
+          36.594818
+        ]
+      },
+      "properties": {
+        "cs_id": 14,
+        "cs_name": "石川県庁行政庁舎（19階展望ロビー）",
+        "address": "石川県金沢市鞍月1丁目1番地",
+        "open_time": "月～日 10:00～20:00",
+        "capacity": 64,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.680328,
+          36.548672
+        ]
+      },
+      "properties": {
+        "cs_id": 15,
+        "cs_name": "石川県立図書館",
+        "address": "石川県金沢市小立野2丁目43番1号",
+        "open_time": "火～日 閲覧9:00～19:00／文化交流9:00～21:00",
+        "capacity": 500,
+        "rest_space": NaN,
+        "notes": "利用者含む"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.64537,
+          36.567348
+        ]
+      },
+      "properties": {
+        "cs_id": 16,
+        "cs_name": "長土塀青少年交流センター",
+        "address": "石川県金沢市長町3丁目3番3号",
+        "open_time": "火～日 9:00～21:00",
+        "capacity": 12,
+        "rest_space": NaN,
+        "notes": "月曜祝日は開館・翌日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.618225,
+          36.562675
+        ]
+      },
+      "properties": {
+        "cs_id": 17,
+        "cs_name": "西部市民憩いの家",
+        "address": "石川県金沢市東力町ハ256番地",
+        "open_time": "月火木土 9:00～21:00／日祝 9:00～19:00",
+        "capacity": 8,
+        "rest_space": NaN,
+        "notes": "水曜休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.599548,
+          36.608147
+        ]
+      },
+      "properties": {
+        "cs_id": 18,
+        "cs_name": "松寿荘",
+        "address": "石川県金沢市金石北3丁目3番33号",
+        "open_time": "9:00～17:00",
+        "capacity": 5,
+        "rest_space": NaN,
+        "notes": "特定日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.629929,
+          36.509651
+        ]
+      },
+      "properties": {
+        "cs_id": 19,
+        "cs_name": "鶴寿園",
+        "address": "石川県金沢市額谷町ヌ1",
+        "open_time": "9:00～16:00",
+        "capacity": 5,
+        "rest_space": NaN,
+        "notes": "特定日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.64798,
+          36.552574
+        ]
+      },
+      "properties": {
+        "cs_id": 20,
+        "cs_name": "金沢未来のまち創造館",
+        "address": "石川県金沢市野町3丁目11-1",
+        "open_time": "9:00～21:00",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.621658,
+          36.629303
+        ]
+      },
+      "properties": {
+        "cs_id": 21,
+        "cs_name": "ものづくり会館",
+        "address": "石川県金沢市粟崎町4丁目80番地1",
+        "open_time": "9:00～21:00",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.574219,
+          36.572453
+        ]
+      },
+      "properties": {
+        "cs_id": 22,
+        "cs_name": "農業センター",
+        "address": "石川県金沢市下安原町東1471番地",
+        "open_time": "月～金 8:30～17:00",
+        "capacity": 4,
+        "rest_space": NaN,
+        "notes": "土日祝休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659103,
+          36.575081
+        ]
+      },
+      "properties": {
+        "cs_id": 23,
+        "cs_name": "中央公民館彦三館",
+        "address": "石川県金沢市彦三町1丁目15番5号",
+        "open_time": "月～土 9:00～21:00／日 9:00～17:00",
+        "capacity": 20,
+        "rest_space": NaN,
+        "notes": "祝日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.641266,
+          36.538326
+        ]
+      },
+      "properties": {
+        "cs_id": 24,
+        "cs_name": "教育プラザ富樫",
+        "address": "石川県金沢市富樫3丁目10番1号",
+        "open_time": "月～日 9:00～21:00",
+        "capacity": 15,
+        "rest_space": "1号館1階スペース",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.735275,
+          36.542637
+        ]
+      },
+      "properties": {
+        "cs_id": 25,
+        "cs_name": "戸室リサイクルプラザ",
+        "address": "石川県金沢市戸室新保ハ604",
+        "open_time": "火～日 9:00～17:00",
+        "capacity": 12,
+        "rest_space": NaN,
+        "notes": "月曜祝日は開館・直後の平日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.646622,
+          36.583538
+        ]
+      },
+      "properties": {
+        "cs_id": 26,
+        "cs_name": "金沢勤労者プラザ",
+        "address": "石川県金沢市北安江3-2-20",
+        "open_time": "月～日 9:00～17:00",
+        "capacity": 10,
+        "rest_space": NaN,
+        "notes": "第1火曜・お盆休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.689896,
+          36.567444
+        ]
+      },
+      "properties": {
+        "cs_id": 27,
+        "cs_name": "千寿閣",
+        "address": "石川県金沢市東長江町辺2番1",
+        "open_time": "月火木～日 9:00～17:00",
+        "capacity": 15,
+        "rest_space": "1階ロビー",
+        "notes": "飲食不可"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.653717,
+          36.566273
+        ]
+      },
+      "properties": {
+        "cs_id": 28,
+        "cs_name": "金沢中央観光案内所",
+        "address": "石川県金沢市南町4-1",
+        "open_time": "月～日 10:00～21:00",
+        "capacity": 6,
+        "rest_space": NaN,
+        "notes": "金沢ニューグランドビル1階"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.612411,
+          36.608849
+        ]
+      },
+      "properties": {
+        "cs_id": 29,
+        "cs_name": "金沢港クルーズターミナル",
+        "address": "石川県金沢市無量寺町リ-65",
+        "open_time": "月～日 9:00～21:00",
+        "capacity": 15,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.663574,
+          36.546474
+        ]
+      },
+      "properties": {
+        "cs_id": 30,
+        "cs_name": "いしかわ子ども交流センター",
+        "address": "石川県金沢市法島町11-8",
+        "open_time": "火～日 9:00～17:00",
+        "capacity": 12,
+        "rest_space": NaN,
+        "notes": "館内飲食不可（水分補給のみ可）・月曜祝日は開館翌日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659271,
+          36.56575
+        ]
+      },
+      "properties": {
+        "cs_id": 31,
+        "cs_name": "金沢城公園 鶴の丸休憩館",
+        "address": "石川県金沢市丸の内1番1号",
+        "open_time": "月～日 7:00～18:00",
+        "capacity": 30,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659271,
+          36.56575
+        ]
+      },
+      "properties": {
+        "cs_id": 32,
+        "cs_name": "金沢城公園 休憩所「玉泉庵」",
+        "address": "石川県金沢市丸の内1番1号",
+        "open_time": "月～日 7:00～18:00",
+        "capacity": 10,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.659271,
+          36.56575
+        ]
+      },
+      "properties": {
+        "cs_id": 33,
+        "cs_name": "金沢城公園 石川門入口休憩所",
+        "address": "石川県金沢市丸の内1番1号",
+        "open_time": "月～日 7:00～18:00",
+        "capacity": 12,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.619827,
+          36.595501
+        ]
+      },
+      "properties": {
+        "cs_id": 34,
+        "cs_name": "いしかわエコハウス",
+        "address": "石川県金沢市鞍月2丁目1番地",
+        "open_time": "9:00～17:00",
+        "capacity": 5,
+        "rest_space": NaN,
+        "notes": "見学者優先"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.651917,
+          36.576313
+        ]
+      },
+      "properties": {
+        "cs_id": 35,
+        "cs_name": "金沢福祉用具情報プラザ",
+        "address": "石川県金沢市本町1丁目10番1号",
+        "open_time": "月水木金土日 10:00～19:00",
+        "capacity": 10,
+        "rest_space": NaN,
+        "notes": "火曜祝日は開館・翌日休館"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.648209,
+          36.557129
+        ]
+      },
+      "properties": {
+        "cs_id": 36,
+        "cs_name": "にし茶屋観光駐車場",
+        "address": "石川県金沢市野町2丁目25番1号",
+        "open_time": "月～日 7:30～22:00",
+        "capacity": 5,
+        "rest_space": NaN,
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.657074,
+          36.560333
+        ]
+      },
+      "properties": {
+        "cs_id": 37,
+        "cs_name": "金沢21世紀美術館",
+        "address": "石川県金沢市広坂1-2-1",
+        "open_time": "期間中無休 9:00～22:00",
+        "capacity": 30,
+        "rest_space": NaN,
+        "notes": "館内飲食不可（交流ゾーンのみ水分補給可）"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.616257,
+          36.514839
+        ]
+      },
+      "properties": {
+        "cs_id": 38,
+        "cs_name": "ウエルシア金沢額新保店",
+        "address": "石川県金沢市額新保3-188",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 4,
+        "rest_space": "ウエルカフェ",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601181,
+          36.557808
+        ]
+      },
+      "properties": {
+        "cs_id": 39,
+        "cs_name": "ウエルシア金沢新保本店",
+        "address": "石川県金沢市新保本3-152-1",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 12,
+        "rest_space": "ウエルカフェ",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601181,
+          36.557808
+        ]
+      },
+      "properties": {
+        "cs_id": 40,
+        "cs_name": "ウエルシア薬局金沢新保本店",
+        "address": "石川県金沢市新保本3-152-1",
+        "open_time": "月～金 10:00～13:00／14:00～17:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.632111,
+          36.604122
+        ]
+      },
+      "properties": {
+        "cs_id": 41,
+        "cs_name": "ウエルシア金沢直江店",
+        "address": "石川県金沢市直江南1-44",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 12,
+        "rest_space": "ウエルカフェ",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.632111,
+          36.604122
+        ]
+      },
+      "properties": {
+        "cs_id": 42,
+        "cs_name": "ウエルシア薬局金沢直江店",
+        "address": "石川県金沢市直江南1-44",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601715,
+          36.603008
+        ]
+      },
+      "properties": {
+        "cs_id": 43,
+        "cs_name": "ウエルシア金沢木曳野店",
+        "address": "石川県金沢市木曳野4-223",
+        "open_time": "月～日 10:00～18:00",
+        "capacity": 12,
+        "rest_space": "ウエルカフェ",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.601715,
+          36.603008
+        ]
+      },
+      "properties": {
+        "cs_id": 44,
+        "cs_name": "ウエルシア薬局金沢木曳野店",
+        "address": "石川県金沢市木曳野4-223",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.670486,
+          36.597324
+        ]
+      },
+      "properties": {
+        "cs_id": 45,
+        "cs_name": "ウエルシア薬局金沢三池店",
+        "address": "石川県金沢市三池栄町312",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.617523,
+          36.50021
+        ]
+      },
+      "properties": {
+        "cs_id": 46,
+        "cs_name": "ウエルシア薬局金沢四十万店",
+        "address": "石川県金沢市四十万4-228",
+        "open_time": "月～金 10:00～14:00／15:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.62262,
+          36.57806
+        ]
+      },
+      "properties": {
+        "cs_id": 47,
+        "cs_name": "ウエルシア薬局金沢出雲町店",
+        "address": "石川県金沢市出雲町イ222",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.674484,
+          36.538029
+        ]
+      },
+      "properties": {
+        "cs_id": 48,
+        "cs_name": "ウエルシア薬局金沢大桑店",
+        "address": "石川県金沢市大桑2-47",
+        "open_time": "月～金 10:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.686844,
+          36.520733
+        ]
+      },
+      "properties": {
+        "cs_id": 49,
+        "cs_name": "ウエルシア薬局金沢末町店",
+        "address": "石川県金沢市末町16-12-1",
+        "open_time": "月～金 10:00～14:00／15:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.635803,
+          36.538013
+        ]
+      },
+      "properties": {
+        "cs_id": 50,
+        "cs_name": "ウエルシア薬局金沢有松店",
+        "address": "石川県金沢市有松4-13-13",
+        "open_time": "月～金 10:00～14:00／15:00～18:00",
+        "capacity": 2,
+        "rest_space": "調剤待合",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.68988,
+          36.551395
+        ]
+      },
+      "properties": {
+        "cs_id": 51,
+        "cs_name": "イオンもりの里店",
+        "address": "石川県金沢市もりの里1-70",
+        "open_time": "月～日 9:00～22:00",
+        "capacity": 30,
+        "rest_space": "1階ふれあい広場",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.61702,
+          36.580887
+        ]
+      },
+      "properties": {
+        "cs_id": 52,
+        "cs_name": "イオンタウン金沢示野",
+        "address": "石川県金沢市戸板西1-55",
+        "open_time": "月～日 10:00～21:00",
+        "capacity": 36,
+        "rest_space": "マックスバリュ棟共用部通路",
+        "notes": "3人掛けベンチ12台"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.654037,
+          36.567768
+        ]
+      },
+      "properties": {
+        "cs_id": 53,
+        "cs_name": "明治安田ヴィレッジ金沢",
+        "address": "石川県金沢市南町4-47",
+        "open_time": "月～日 10:30～17:00",
+        "capacity": 20,
+        "rest_space": "多目的スペース",
+        "notes": "イベント開催日除く・食事不可・駐車場なし"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.641708,
+          36.558208
+        ]
+      },
+      "properties": {
+        "cs_id": 54,
+        "cs_name": "あるかふぇ",
+        "address": "石川県金沢市増泉1-20-20",
+        "open_time": "月～金 8:30～17:00",
+        "capacity": 10,
+        "rest_space": "コミュニティースペース",
+        "notes": "祝日等除く・11:30～13:30食事可"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.649506,
+          36.57856
+        ]
+      },
+      "properties": {
+        "cs_id": 55,
+        "cs_name": "金沢フォーラス",
+        "address": "石川県金沢市堀川新町3-1",
+        "open_time": "月～日 10:00～20:00",
+        "capacity": 50,
+        "rest_space": "各フロアのイス設置スペース",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.653381,
+          36.562077
+        ]
+      },
+      "properties": {
+        "cs_id": 56,
+        "cs_name": "クラソ・プレイス香林坊（Museum Shop & Café KAMU kanazawa）",
+        "address": "石川県金沢市香林坊2-1-1",
+        "open_time": "月～日 10:00～20:00",
+        "capacity": 20,
+        "rest_space": "Museum Shop & Café オープンスペース",
+        "notes": NaN
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          136.617264,
+          36.566669
+        ]
+      },
+      "properties": {
+        "cs_id": 57,
+        "cs_name": "オレンジハートランドリー間明町店",
+        "address": "石川県金沢市間明町1-240",
+        "open_time": "月～金 8:45～17:45",
+        "capacity": 4,
+        "rest_space": "ランドリー店内",
+        "notes": NaN
+      }
+    }
+  ]
+}

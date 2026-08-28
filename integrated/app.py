@@ -43,10 +43,20 @@ from integrated.graph_cache import warmup_bbox
 from integrated.cs_i18n import localize_geojson_feature, localize_visit_block
 from integrated.route_ext import RouteFactorsIntegrated, route_shadow_aware_integrated
 
+def _resolve_cs_geojson(repo: Path) -> Path:
+    for candidate in [
+        repo / "ジオコーディング" / "cooling_shelters.geojson",
+        repo / "geocoding" / "cooling_shelters.geojson",
+        repo / "data" / "cooling_shelters.geojson",
+    ]:
+        if candidate.exists():
+            return candidate
+    return repo / "data" / "cooling_shelters.geojson"
+
 REPO = Path(__file__).resolve().parent.parent
 DATA = REPO / "data"
 STATIC = Path(__file__).resolve().parent / "static"
-CS_GEOJSON = REPO / "ジオコーディング" / "cooling_shelters.geojson"
+CS_GEOJSON = _resolve_cs_geojson(REPO)
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
