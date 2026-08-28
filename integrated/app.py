@@ -176,6 +176,8 @@ def _load_cooling_shelters_geojson() -> dict:
 
 
 @app.get("/")
+@app.get("/route")
+@app.get("/nav")
 def integrated_ui():
     p = STATIC / "index.html"
     if not p.is_file():
@@ -184,6 +186,8 @@ def integrated_ui():
 
 
 @app.get("/new")
+@app.get("/route/new")
+@app.get("/nav/new")
 def integrated_ui_new():
     p = STATIC / "index.html"
     if not p.is_file():
@@ -192,6 +196,8 @@ def integrated_ui_new():
 
 
 @app.get("/compare")
+@app.get("/route/compare")
+@app.get("/nav/compare")
 def integrated_ui_compare():
     p = STATIC / "compare.html"
     if not p.is_file():
@@ -199,13 +205,18 @@ def integrated_ui_compare():
     return FileResponse(p)
 
 
+@app.get("/shadow")
+def integrated_ui_shadow():
+    p = REPO / "static" / "shadow.html"
+    if p.is_file():
+        return FileResponse(p)
+    return RedirectResponse(url="/", status_code=307)
+
+
 @app.get("/en")
-def integrated_ui_en():
-    return RedirectResponse(url="/?lang=en", status_code=307)
-
-
 @app.get("/route/en")
-def integrated_ui_en_alias():
+@app.get("/nav/en")
+def integrated_ui_en():
     return RedirectResponse(url="/?lang=en", status_code=307)
 
 
