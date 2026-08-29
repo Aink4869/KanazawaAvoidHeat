@@ -88,6 +88,7 @@ def prepare_graph_nav_costs_integrated(
 
     tf = grid.transform
     ny_g, nx_g = grid.ny, grid.nx
+    bounds = (grid.xmin, grid.ymin, grid.xmax, grid.ymax)
     eps = 1e-9
     n_samples = (
         shadow_samples if shadow_samples is not None else SHADOW_SAMPLES_PER_EDGE
@@ -105,13 +106,13 @@ def prepare_graph_nav_costs_integrated(
         if need_shadow:
             if geom is not None:
                 frac = sample_edge_shadow_fraction(
-                    mask, tf, ny_g, nx_g, geom, n_samples=n_samples
+                    mask, tf, ny_g, nx_g, geom, n_samples=n_samples, grid_bounds=bounds
                 )
             else:
                 n1, n2 = G_proj.nodes[_u], G_proj.nodes[_v]
                 ls = LineString([(n1["x"], n1["y"]), (n2["x"], n2["y"])])
                 frac = sample_edge_shadow_fraction(
-                    mask, tf, ny_g, nx_g, ls, n_samples=n_samples
+                    mask, tf, ny_g, nx_g, ls, n_samples=n_samples, grid_bounds=bounds
                 )
         else:
             frac = 0.0
@@ -119,8 +120,8 @@ def prepare_graph_nav_costs_integrated(
         shade_cost_frac = (1.0 - frac) if factors.prefer_shade else frac
 
         if need_slope:
-            zu = _node_elev(G_proj, _u, grid.elev_m, tf, ny_g, nx_g)
-            zv = _node_elev(G_proj, _v, grid.elev_m, tf, ny_g, nx_g)
+            zu = _node_elev(G_proj, _u, grid.elev_m, tf, ny_g, nx_g, grid_bounds=bounds)
+            zv = _node_elev(G_proj, _v, grid.elev_m, tf, ny_g, nx_g, grid_bounds=bounds)
             if np.isfinite(zu) and np.isfinite(zv):
                 grade = abs(float(zv - zu) / length)
             else:
