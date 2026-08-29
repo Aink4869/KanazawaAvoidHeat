@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import errno
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,32 @@ _undirected_cache: dict[int, nx.Graph] = {}
 _cs_nodes_cache: dict[tuple[float, float, float, float], list] = {}
 _last_graph_source: str = "memory"
 
+# ディスクキャッシュの一覧メタデータ (lon_min, lat_min, lon_max, lat_max, filepath)
+_cached_disk_files: list[tuple[float, float, float, float, Path]] = []
+
+
+def _scan_disk_cache() -> None:
+    global _cached_disk_files
+    if not DISK_CACHE_DIR.is_dir():
+        return
+    results = []
+    pattern = re.compile(
+        r"^walk_([0-9]+\.[0-9]+)_([0-9]+\.[0-9]+)_([0-9]+\.[0-9]+)_([0-9]+\.[0-9]+)\.graphml$"
+    )
+    for p in DISK_CACHE_DIR.glob("*.graphml"):
+        m = pattern.match(p.name)
+        if m:
+            lomin, lamin, lomax, lamax = map(float, m.groups())
+            results.append((lomin, lamin, lomax, lamax, p))
+    # 広い bbox を優先
+    results.sort(
+        key=lambda item: (item[2] - item[0]) * (item[3] - item[1]), reverse=True
+    )
+    _cached_disk_files = results
+
+
+_scan_disk_cache()
+
 
 def _bbox_key(
     lon_min: float, lat_min: float, lon_max: float, lat_max: float
@@ -34,6 +61,18 @@ def _bbox_key(
 def _disk_path(key: tuple[float, float, float, float]) -> Path:
     name = "walk_" + "_".join(f"{v:.4f}" for v in key) + ".graphml"
     return DISK_CACHE_DIR / name
+
+
+def _find_covering_disk_graph(
+    lon_min: float, lat_min: float, lon_max: float, lat_max: float
+) -> Path | None:
+    """要求された bbox を内包する既存の .graphml キャッシュファイルを探す。"""
+    for lomin, lamin, lomax, lamax, p in _cached_disk_files:
+        if lomin <= lon_min and lamin <= lat_min and lomax >= lon_max and lamax >= lat_max:
+            return p
+    if _cached_disk_files:
+        return _cached_disk_files[0][4]
+    return None
 
 
 def last_graph_load_source() -> str:
@@ -78,7 +117,7 @@ def get_walk_graph_projected(
     *,
     network_type: str = "walk",
 ) -> nx.MultiDiGraph:
-    """EPSG:6670 投影済みグラフ（メモリ → ディスク → Overpass の順で取得）。"""
+    """EPSG:6670 投影済みグラフ（メモリ → ディスク完全一致 → ディスク内包フォールバック → Overpass の順で取得）。"""
     global _last_graph_source
 
     key = _bbox_key(lon_min, lat_min, lon_max, lat_max)
@@ -93,18 +132,35 @@ def get_walk_graph_projected(
         _last_graph_source = "disk"
         return Gp
 
-    G = _fetch_walk_graph(lon_min, lat_min, lon_max, lat_max, network_type=network_type)
-    Gp = ox.project_graph(G, to_crs="EPSG:6670")
-    _walk_graph_cache[key] = Gp
-    _last_graph_source = "network"
+    covering_disk = _find_covering_disk_graph(lon_min, lat_min, lon_max, lat_max)
+    if covering_disk is not None and covering_disk.is_file():
+        Gp = ox.load_graphml(covering_disk)
+        _walk_graph_cache[key] = Gp
+        _last_graph_source = "disk_fallback"
+        return Gp
 
     try:
-        DISK_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        ox.save_graphml(Gp, disk)
-    except OSError:
-        pass
+        G = _fetch_walk_graph(lon_min, lat_min, lon_max, lat_max, network_type=network_type)
+        Gp = ox.project_graph(G, to_crs="EPSG:6670")
+        _walk_graph_cache[key] = Gp
+        _last_graph_source = "network"
 
-    return Gp
+        try:
+            DISK_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            ox.save_graphml(Gp, disk)
+            _scan_disk_cache()
+        except OSError:
+            pass
+
+        return Gp
+    except Exception as net_err:
+        if _cached_disk_files:
+            fallback_path = _cached_disk_files[0][4]
+            Gp = ox.load_graphml(fallback_path)
+            _walk_graph_cache[key] = Gp
+            _last_graph_source = "disk_emergency_fallback"
+            return Gp
+        raise net_err
 
 
 def warmup_bbox(

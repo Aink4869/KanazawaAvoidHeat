@@ -351,27 +351,8 @@ def route_shadow_aware(
     lat_max, lat_min = max(olat, dlat) + pad, min(olat, dlat) - pad
     lon_max, lon_min = max(olon, dlon) + pad, min(olon, dlon) - pad
 
-    try:
-        G = ox.graph_from_bbox(
-            bbox=(lon_min, lat_min, lon_max, lat_max),
-            network_type=network_type,
-        )
-    except OSError as e:
-        # Windows 環境で OSMnx キャッシュ書き込みが失敗する場合があるため、
-        # そのときだけキャッシュ無効で再取得する。
-        if e.errno == errno.EINVAL and "cache" in str(e).lower():
-            old_cache = ox.settings.use_cache
-            ox.settings.use_cache = False
-            try:
-                G = ox.graph_from_bbox(
-                    bbox=(lon_min, lat_min, lon_max, lat_max),
-                    network_type=network_type,
-                )
-            finally:
-                ox.settings.use_cache = old_cache
-        else:
-            raise
-    Gp = ox.project_graph(G, to_crs="EPSG:6670")
+    from integrated.graph_cache import get_walk_graph_projected
+    Gp = get_walk_graph_projected(lon_min, lat_min, lon_max, lat_max, network_type=network_type)
 
     on = nearest_node(Gp, orig_xy[0], orig_xy[1])
     dn = nearest_node(Gp, dest_xy[0], dest_xy[1])
