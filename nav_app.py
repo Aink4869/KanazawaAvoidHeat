@@ -40,20 +40,10 @@ from nav_shadow import (
     time_index,
 )
 
-def _resolve_cs_geojson(root: Path) -> Path:
-    for candidate in [
-        root / "ジオコーディング" / "cooling_shelters.geojson",
-        root / "geocoding" / "cooling_shelters.geojson",
-        root / "data" / "cooling_shelters.geojson",
-    ]:
-        if candidate.exists():
-            return candidate
-    return root / "data" / "cooling_shelters.geojson"
-
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 STATIC = ROOT / "static"
-CS_GEOJSON = _resolve_cs_geojson(ROOT)
+CS_GEOJSON = ROOT / "ジオコーディング" / "cooling_shelters.geojson"
 
 app = FastAPI(title="Kanazawa Shadow Map & Navigator", version="0.3.0")
 

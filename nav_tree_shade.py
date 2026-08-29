@@ -7,6 +7,7 @@ nav_mask = lightweight ∪ (HP_trees \\ lightweight)
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
@@ -16,14 +17,14 @@ import pandas as pd
 import pvlib
 from pyproj import Transformer
 from rasterio.transform import from_bounds
-
-from geometry_shadow_engine import _tree_shadow
-from plateau_load import kanazawa_study_bbox, load_buildings_projected
+from scipy.ndimage import uniform_filter
 
 ROOT = Path(__file__).resolve().parent
 AERIAL_TIF = ROOT / "成果物" / "11_残差樹木日陰" / "13_航空写真" / "航空写真_nendophoto2024_z18_研究範囲.tif"
 TREE_HEIGHT_M = 14.9
 CANOPY_THR_AERIAL = 0.20
+ORTHO_Z = 18
+R_E = 20037508.342789244
 REF_LAT = (36.57125 + 36.56204) / 2.0
 REF_LON = (136.65694 + 136.66245) / 2.0
 JST = timezone(timedelta(hours=9))
@@ -31,6 +32,90 @@ JST = timezone(timedelta(hours=9))
 _ENGINE: TreeShadeEngine | None = None
 _ENGINE_KEY: tuple | None = None
 _MASK_MEM: dict[tuple, np.ndarray] = {}
+
+
+def _tree_shadow(canopy, X, Y, az, elev, h, cellx, celly):
+    if elev <= 0 or not canopy.any():
+        return np.zeros(canopy.shape, bool)
+    dx, dy = -math.sin(math.radians(az)), -math.cos(math.radians(az))
+    L = h / math.tan(math.radians(elev))
+    sh = canopy.copy()
+    r_idx, c_idx = np.where(canopy)
+    xs, ys = X[r_idx, c_idx], Y[r_idx, c_idx]
+    step = min(cellx, celly) * 0.5
+    nstep = int(L / step) + 1
+    ny, nx = canopy.shape
+    gxmin, gxmax = float(X.min()), float(X.max())
+    gymin, gymax = float(Y.min()), float(Y.max())
+    for s in range(1, nstep + 1):
+        t = s * step
+        if t > L:
+            break
+        px = xs + t * dx
+        py = ys + t * dy
+        col2 = ((px - gxmin) / (gxmax - gxmin) * nx).astype(int)
+        row2 = ((gymax - py) / (gymax - gymin) * ny).astype(int)
+        ok = (col2 >= 0) & (col2 < nx) & (row2 >= 0) & (row2 < ny)
+        sh[row2[ok], col2[ok]] = True
+    return sh
+
+
+def _lonlat_to_tile(lon, lat, z):
+    n = 2**z
+    xt = (lon + 180.0) / 360.0 * n
+    yt = (1 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2 * n
+    return xt, yt
+
+
+def _fetch_mosaic(lat_min, lat_max, lon_min, lon_max, z, cache: Path):
+    from PIL import Image
+    import time
+    import urllib.request
+
+    cache.mkdir(parents=True, exist_ok=True)
+    n = 2**z
+    x0f, y0f = _lonlat_to_tile(lon_min, lat_max, z)
+    x1f, y1f = _lonlat_to_tile(lon_max, lat_min, z)
+    xt0, xt1 = int(math.floor(x0f)), int(math.floor(x1f))
+    yt0, yt1 = int(math.floor(y0f)), int(math.floor(y1f))
+    mosaic = Image.new("RGB", ((xt1 - xt0 + 1) * 256, (yt1 - yt0 + 1) * 256))
+    for j, yt in enumerate(range(yt0, yt1 + 1)):
+        for i, xt in enumerate(range(xt0, xt1 + 1)):
+            fp = cache / f"{z}_{xt}_{yt}.jpg"
+            if not fp.is_file():
+                url = f"https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{xt}/{yt}.jpg"
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                try:
+                    fp.write_bytes(urllib.request.urlopen(req, timeout=25).read())
+                    time.sleep(0.04)
+                except Exception:
+                    continue
+            try:
+                mosaic.paste(Image.open(fp).convert("RGB"), (i * 256, j * 256))
+            except Exception:
+                pass
+    mx0, my0 = (-R_E + xt0 / n * 2 * R_E), (R_E - yt0 / n * 2 * R_E)
+    mpp = (2 * R_E / n) / 256.0
+    return np.asarray(mosaic), mx0, my0, mpp
+
+
+def _tree_fraction_grid(X, Y, mosaic, mx0, my0, mpp, to_merc, half=10):
+    H, W = mosaic.shape[:2]
+    Rr = mosaic[:, :, 0].astype(np.float32)
+    Gg = mosaic[:, :, 1].astype(np.float32)
+    Bb = mosaic[:, :, 2].astype(np.float32)
+    exg = 2 * Gg - Rr - Bb
+    bright = (Rr + Gg + Bb) / 3
+    veg = (exg > 38) & (Gg > Rr + 20) & (Gg >= Bb + 4) & (bright > 45) & (bright < 165)
+    k = 2 * half + 1
+    veg_sm = uniform_filter(veg.astype(np.float64), size=k)
+    mxx, myy = to_merc.transform(X.ravel(), Y.ravel())
+    px = ((mxx - mx0) / mpp).astype(np.int32)
+    py = ((my0 - myy) / mpp).astype(np.int32)
+    tree_frac = np.zeros(X.size, dtype=np.float64)
+    ok = (px >= 0) & (px < W) & (py >= 0) & (py < H)
+    tree_frac[ok] = veg_sm[py[ok], px[ok]]
+    return tree_frac.reshape(X.shape)
 
 
 @dataclass
@@ -77,39 +162,45 @@ def _grid_xy(xmin: float, xmax: float, ymin: float, ymax: float, nx: int, ny: in
     cellx = (xmax - xmin) / nx
     celly = (ymax - ymin) / ny
     xs = xmin + (np.arange(nx, dtype=np.float64) + 0.5) * cellx
-    # 行0が北（ymax）側（rasterio north-up と同じ）
     ys = ymax - (np.arange(ny, dtype=np.float64) + 0.5) * celly
     X, Y = np.meshgrid(xs, ys)
     return tf, X, Y, cellx, celly
 
 
 def _building_mask(tf, ny: int, nx: int) -> np.ndarray:
-    from rasterio import features
-    from rasterio.enums import MergeAlg
+    try:
+        from plateau_load import kanazawa_study_bbox, load_buildings_projected
+        from rasterio import features
+        from rasterio.enums import MergeAlg
 
-    bbox_ll, _, _, _, _ = kanazawa_study_bbox()
-    transformer = Transformer.from_crs("EPSG:6697", "EPSG:6670", always_xy=True)
-    buildings = load_buildings_projected(ROOT / "plateaudata", bbox_ll, transformer)
-    shapes = []
-    for bf in buildings:
-        try:
-            shapes.append((bf.poly_xy, 1))
-        except Exception:
-            continue
-    if not shapes:
-        return np.zeros((ny, nx), dtype=bool)
-    return (
-        features.rasterize(
-            shapes,
-            out_shape=(ny, nx),
-            transform=tf,
-            fill=0,
-            dtype=np.uint8,
-            merge_alg=MergeAlg.add,
-            all_touched=True,
+        bbox_ll, _, _, _, _ = kanazawa_study_bbox()
+        transformer = Transformer.from_crs("EPSG:6697", "EPSG:6670", always_xy=True)
+        data_dir = ROOT / "plateaudata"
+        if not data_dir.exists():
+            return np.zeros((ny, nx), dtype=bool)
+        buildings = load_buildings_projected(data_dir, bbox_ll, transformer)
+        shapes = []
+        for bf in buildings:
+            try:
+                shapes.append((bf.poly_xy, 1))
+            except Exception:
+                continue
+        if not shapes:
+            return np.zeros((ny, nx), dtype=bool)
+        return (
+            features.rasterize(
+                shapes,
+                out_shape=(ny, nx),
+                transform=tf,
+                fill=0,
+                dtype=np.uint8,
+                merge_alg=MergeAlg.add,
+                all_touched=True,
+            )
+            > 0
         )
-        > 0
-    )
+    except Exception:
+        return np.zeros((ny, nx), dtype=bool)
 
 
 def _canopy_aerial(X: np.ndarray, Y: np.ndarray, bmask: np.ndarray) -> tuple[np.ndarray, str]:
@@ -123,8 +214,6 @@ def _canopy_aerial(X: np.ndarray, Y: np.ndarray, bmask: np.ndarray) -> tuple[np.
 
 
 def _canopy_gsi(X: np.ndarray, Y: np.ndarray, bmask: np.ndarray) -> tuple[np.ndarray, str]:
-    from geometry_shadow_engine import ORTHO_Z, _fetch_mosaic, _tree_fraction_grid
-
     to_ll = Transformer.from_crs("EPSG:6670", "EPSG:4326", always_xy=True)
     los, las = [], []
     for x, y in (
@@ -164,7 +253,10 @@ def get_tree_engine(grid, *, root: Path | None = None, tree_height_m: float = TR
         try:
             canopy, source = _canopy_aerial(X, Y, bmask)
         except Exception:
-            canopy, source = _canopy_gsi(X, Y, bmask)
+            try:
+                canopy, source = _canopy_gsi(X, Y, bmask)
+            except Exception:
+                return None
     else:
         try:
             canopy, source = _canopy_gsi(X, Y, bmask)
@@ -204,40 +296,37 @@ def apply_tree_residual(
     *,
     include_tree_shade: bool = True,
     root: Path | None = None,
-    tree_height_m: float = TREE_HEIGHT_M,
 ) -> tuple[np.ndarray, np.ndarray, dict]:
     """
-    Returns
-    -------
-    combined, residual, info
+    include_tree_shade=False:
+      combined=light_mask, residual=0
+
+    include_tree_shade=True:
+      combined=light_mask ∪ (tree \\ light_mask), residual=tree \\ light_mask
     """
-    empty = np.zeros_like(light_mask, dtype=np.uint8)
-    info = {
-        "include_tree_shade": bool(include_tree_shade),
-        "tree_shade_applied": False,
-        "tree_shade_source": None,
-        "tree_height_m": tree_height_m,
-        "tree_residual_cell_fraction": 0.0,
-        "combined_shadow_cell_fraction": float(np.mean(light_mask > 0)) if light_mask.size else 0.0,
-        "lightweight_shadow_cell_fraction": float(np.mean(light_mask > 0)) if light_mask.size else 0.0,
-    }
+    ny, nx = light_mask.shape
+    empty_res = np.zeros((ny, nx), dtype=np.uint8)
     if not include_tree_shade:
-        return light_mask.astype(np.uint8), empty, info
-    eng = get_tree_engine(grid, root=root, tree_height_m=tree_height_m)
+        return (
+            (np.asarray(light_mask) > 0).astype(np.uint8),
+            empty_res,
+            {"tree_shade_applied": False, "source": "building_only"},
+        )
+    eng = get_tree_engine(grid, root=root)
     if eng is None:
-        info["tree_shade_source"] = "unavailable"
-        return light_mask.astype(np.uint8), empty, info
-    tree = eng.mask_at(when, hour_local)
-    if tree.shape != light_mask.shape:
-        info["tree_shade_source"] = f"shape_mismatch:{tree.shape}"
-        return light_mask.astype(np.uint8), empty, info
-    combined, residual = combine_light_and_hp_trees(light_mask, tree)
-    info.update(
-        {
-            "tree_shade_applied": True,
-            "tree_shade_source": eng.source,
-            "tree_residual_cell_fraction": float(np.mean(residual > 0)),
-            "combined_shadow_cell_fraction": float(np.mean(combined > 0)),
-        }
-    )
+        return (
+            (np.asarray(light_mask) > 0).astype(np.uint8),
+            empty_res,
+            {"tree_shade_applied": False, "source": "no_tree_engine"},
+        )
+    tree_m = eng.mask_at(when, hour_local)
+    combined, residual = combine_light_and_hp_trees(light_mask, tree_m)
+    info = {
+        "tree_shade_applied": True,
+        "source": eng.source,
+        "tree_height_m": eng.tree_height_m,
+        "tree_cells": int(np.sum(tree_m > 0)),
+        "residual_cells": int(np.sum(residual > 0)),
+        "combined_cells": int(np.sum(combined > 0)),
+    }
     return combined, residual, info

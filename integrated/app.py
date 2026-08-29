@@ -43,20 +43,10 @@ from integrated.graph_cache import warmup_bbox
 from integrated.cs_i18n import localize_geojson_feature, localize_visit_block
 from integrated.route_ext import RouteFactorsIntegrated, route_shadow_aware_integrated
 
-def _resolve_cs_geojson(repo: Path) -> Path:
-    for candidate in [
-        repo / "ジオコーディング" / "cooling_shelters.geojson",
-        repo / "geocoding" / "cooling_shelters.geojson",
-        repo / "data" / "cooling_shelters.geojson",
-    ]:
-        if candidate.exists():
-            return candidate
-    return repo / "data" / "cooling_shelters.geojson"
-
 REPO = Path(__file__).resolve().parent.parent
 DATA = REPO / "data"
 STATIC = Path(__file__).resolve().parent / "static"
-CS_GEOJSON = _resolve_cs_geojson(REPO)
+CS_GEOJSON = REPO / "ジオコーディング" / "cooling_shelters.geojson"
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
@@ -176,8 +166,6 @@ def _load_cooling_shelters_geojson() -> dict:
 
 
 @app.get("/")
-@app.get("/route")
-@app.get("/nav")
 def integrated_ui():
     p = STATIC / "index.html"
     if not p.is_file():
@@ -186,8 +174,6 @@ def integrated_ui():
 
 
 @app.get("/new")
-@app.get("/route/new")
-@app.get("/nav/new")
 def integrated_ui_new():
     p = STATIC / "index.html"
     if not p.is_file():
@@ -196,8 +182,6 @@ def integrated_ui_new():
 
 
 @app.get("/compare")
-@app.get("/route/compare")
-@app.get("/nav/compare")
 def integrated_ui_compare():
     p = STATIC / "compare.html"
     if not p.is_file():
@@ -205,18 +189,13 @@ def integrated_ui_compare():
     return FileResponse(p)
 
 
-@app.get("/shadow")
-def integrated_ui_shadow():
-    p = REPO / "static" / "shadow.html"
-    if p.is_file():
-        return FileResponse(p)
-    return RedirectResponse(url="/", status_code=307)
-
-
 @app.get("/en")
-@app.get("/route/en")
-@app.get("/nav/en")
 def integrated_ui_en():
+    return RedirectResponse(url="/?lang=en", status_code=307)
+
+
+@app.get("/route/en")
+def integrated_ui_en_alias():
     return RedirectResponse(url="/?lang=en", status_code=307)
 
 

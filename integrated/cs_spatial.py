@@ -10,18 +10,8 @@ import numpy as np
 from pyproj import Transformer
 from scipy.spatial import cKDTree
 
-def _resolve_cs_geojson(repo: Path) -> Path:
-    for candidate in [
-        repo / "ジオコーディング" / "cooling_shelters.geojson",
-        repo / "geocoding" / "cooling_shelters.geojson",
-        repo / "data" / "cooling_shelters.geojson",
-    ]:
-        if candidate.exists():
-            return candidate
-    return repo / "data" / "cooling_shelters.geojson"
-
 REPO = Path(__file__).resolve().parent.parent
-CS_GEOJSON = _resolve_cs_geojson(REPO)
+CS_GEOJSON = REPO / "ジオコーディング" / "cooling_shelters.geojson"
 
 _cs_catalog: list[CoolingShelterSite] | None = None
 _cs_xy: np.ndarray | None = None
