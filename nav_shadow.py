@@ -156,20 +156,44 @@ def sample_edge_shadow_fraction(
     ny: int,
     nx: int,
     line: LineString,
-    n_samples: int = 8,
+    n_samples: int = 4,
+    grid_bounds: tuple[float, float, float, float] | None = None,
 ) -> float:
     if line is None or line.is_empty:
         return 0.0
-    vals: list[float] = []
-    for i in range(n_samples):
-        pt = line.interpolate((i + 0.5) / n_samples, normalized=True)
-        try:
-            r, c = rowcol(transform, pt.x, pt.y)
-        except Exception:
-            continue
-        if 0 <= r < ny and 0 <= c < nx:
-            vals.append(float(mask[r, c]))
-    return float(np.mean(vals)) if vals else 0.0
+    coords = list(line.coords)
+    if len(coords) == 2:
+        (x0, y0), (x1, y1) = coords
+        xs = (x0 * 0.8 + x1 * 0.2, x0 * 0.5 + x1 * 0.5, x0 * 0.2 + x1 * 0.8)
+        ys = (y0 * 0.8 + y1 * 0.2, y0 * 0.5 + y1 * 0.5, y0 * 0.2 + y1 * 0.8)
+    else:
+        ts = (0.2, 0.5, 0.8)
+        pts = [line.interpolate(t, normalized=True) for t in ts]
+        xs = [p.x for p in pts]
+        ys = [p.y for p in pts]
+
+    tot = 0.0
+    cnt = 0
+    if grid_bounds is not None:
+        xmin, ymin, xmax, ymax = grid_bounds
+        cellx = (xmax - xmin) / nx
+        celly = (ymax - ymin) / ny
+        for x, y in zip(xs, ys):
+            c = int((x - xmin) / cellx)
+            r = int((ymax - y) / celly)
+            if 0 <= r < ny and 0 <= c < nx:
+                tot += float(mask[r, c])
+                cnt += 1
+    else:
+        for x, y in zip(xs, ys):
+            try:
+                r, c = rowcol(transform, x, y)
+                if 0 <= r < ny and 0 <= c < nx:
+                    tot += float(mask[r, c])
+                    cnt += 1
+            except Exception:
+                continue
+    return tot / cnt if cnt > 0 else 0.0
 
 
 def _node_elev(
@@ -179,12 +203,24 @@ def _node_elev(
     tf,
     ny: int,
     nx: int,
+    grid_bounds: tuple[float, float, float, float] | None = None,
 ) -> float:
     """ノード位置の標高。グリッド外・欠損は nan。"""
     if elev_m is None:
         return float("nan")
     nd = G.nodes[n]
     x, y = float(nd["x"]), float(nd["y"])
+    if grid_bounds is not None:
+        xmin, ymin, xmax, ymax = grid_bounds
+        cellx = (xmax - xmin) / nx
+        celly = (ymax - ymin) / ny
+        c = int((x - xmin) / cellx)
+        r = int((ymax - y) / celly)
+        if 0 <= r < ny and 0 <= c < nx:
+            v = float(elev_m[r, c])
+            if np.isfinite(v):
+                return v
+        return float("nan")
     try:
         r, c = rowcol(tf, x, y)
     except Exception:
@@ -225,6 +261,7 @@ def prepare_graph_nav_costs(
 
     tf = grid.transform
     ny, nx = grid.ny, grid.nx
+    bounds = (grid.xmin, grid.ymin, grid.xmax, grid.ymax)
     eps = 1e-9
 
     for _u, _v, _k, data in G_proj.edges(keys=True, data=True):
@@ -234,14 +271,14 @@ def prepare_graph_nav_costs(
             length = 1e-6
 
         if geom is not None:
-            frac = sample_edge_shadow_fraction(mask, tf, ny, nx, geom)
+            frac = sample_edge_shadow_fraction(mask, tf, ny, nx, geom, grid_bounds=bounds)
         else:
             n1, n2 = G_proj.nodes[_u], G_proj.nodes[_v]
             ls = LineString([(n1["x"], n1["y"]), (n2["x"], n2["y"])])
-            frac = sample_edge_shadow_fraction(mask, tf, ny, nx, ls)
+            frac = sample_edge_shadow_fraction(mask, tf, ny, nx, ls, grid_bounds=bounds)
 
-        zu = _node_elev(G_proj, _u, grid.elev_m, tf, ny, nx)
-        zv = _node_elev(G_proj, _v, grid.elev_m, tf, ny, nx)
+        zu = _node_elev(G_proj, _u, grid.elev_m, tf, ny, nx, grid_bounds=bounds)
+        zv = _node_elev(G_proj, _v, grid.elev_m, tf, ny, nx, grid_bounds=bounds)
         if (
             factors.use_slope
             and grid.elev_m is not None

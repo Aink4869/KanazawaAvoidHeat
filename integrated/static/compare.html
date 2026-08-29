@@ -361,7 +361,14 @@
               factors: factors
             })
           });
-          var j = await r.json();
+          var j;
+          try {
+            j = await r.json();
+          } catch (jsonErr) {
+            var raw = '';
+            try { raw = await r.text(); } catch(e) {}
+            throw new Error(r.status ? ('サーバー応答エラー (' + r.status + '): ' + raw.slice(0, 100)) : 'サーバーが応答していません。');
+          }
           if (!r.ok) {
             setStatus('エラー: ' + (j.detail || JSON.stringify(j)), 'err');
             return;

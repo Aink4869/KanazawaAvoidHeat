@@ -246,24 +246,40 @@ def get_tree_engine(grid, *, root: Path | None = None, tree_height_m: float = TR
     if _ENGINE is not None and _ENGINE_KEY == key:
         return _ENGINE
     tf, X, Y, cellx, celly = _grid_xy(grid.xmin, grid.xmax, grid.ymin, grid.ymax, grid.nx, grid.ny)
-    bmask = _building_mask(tf, grid.ny, grid.nx)
     source = "none"
     canopy = np.zeros((grid.ny, grid.nx), dtype=bool)
-    if AERIAL_TIF.is_file():
-        try:
-            canopy, source = _canopy_aerial(X, Y, bmask)
-        except Exception:
+
+    # 1. 最優先: 同梱の事前計算キャノピーマスク (.npy)
+    canopy_candidates = [
+        root / "data" / "canopy_mask_base.npy",
+        Path(__file__).resolve().parent / "data" / "canopy_mask_base.npy",
+        Path.cwd() / "data" / "canopy_mask_base.npy",
+    ]
+    for cp in canopy_candidates:
+        if cp.is_file():
             try:
-                canopy, source = _canopy_gsi(X, Y, bmask)
+                arr = np.load(cp)
+                if arr.shape == (grid.ny, grid.nx):
+                    canopy = arr > 0
+                    source = "canopy_mask_base_H14.9m"
+                    break
             except Exception:
-                return None
-    else:
-        try:
-            canopy, source = _canopy_gsi(X, Y, bmask)
-        except Exception:
-            return None
+                pass
+
+    # 2. 航空写真 TIF がある場合
     if not np.any(canopy):
-        return None
+        bmask = _building_mask(tf, grid.ny, grid.nx)
+        if AERIAL_TIF.is_file():
+            try:
+                canopy, source = _canopy_aerial(X, Y, bmask)
+            except Exception:
+                pass
+
+    # 3. キャノピーが見つからない場合、全域ゼロ配列で安全にフォールバック
+    if not np.any(canopy):
+        canopy = np.zeros((grid.ny, grid.nx), dtype=bool)
+        source = "empty_fallback"
+
     eng = TreeShadeEngine(
         canopy=canopy,
         X=X,
