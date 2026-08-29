@@ -1,7 +1,8 @@
-"""OSM 歩道グラフ・コスト付きグラフのメモリ／ディスクキャッシュ。"""
+"""OSM 歩道グラフ・コスト付きグラフのメモリ／ディスクキャッシュ（完全オフライン安定版）。"""
 from __future__ import annotations
 
 import errno
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -10,8 +11,18 @@ import networkx as nx
 import numpy as np
 import osmnx as ox
 
-REPO = Path(__file__).resolve().parent.parent
-DISK_CACHE_DIR = REPO / "data" / "osm_walk_cache"
+def _resolve_cache_dir() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent.parent / "data" / "osm_walk_cache",
+        Path.cwd() / "data" / "osm_walk_cache",
+        Path("/app/data/osm_walk_cache"),
+    ]
+    for c in candidates:
+        if c.is_dir() and any(c.glob("*.graphml")):
+            return c
+    return candidates[0]
+
+DISK_CACHE_DIR = _resolve_cache_dir()
 
 # bbox: (lon_min, lat_min, lon_max, lat_max) 丸めキー
 _walk_graph_cache: dict[tuple[float, float, float, float], nx.MultiDiGraph] = {}
@@ -19,13 +30,15 @@ _prepared_cache: dict[tuple, nx.MultiDiGraph] = {}
 _undirected_cache: dict[int, nx.Graph] = {}
 _cs_nodes_cache: dict[tuple[float, float, float, float], list] = {}
 _last_graph_source: str = "memory"
+_master_graph: nx.MultiDiGraph | None = None
 
-# ディスクキャッシュの一覧メタデータ (lon_min, lat_min, lon_max, lat_max, filepath)
+# ディスクキャッシュの一覧 (lon_min, lat_min, lon_max, lat_max, filepath)
 _cached_disk_files: list[tuple[float, float, float, float, Path]] = []
 
 
 def _scan_disk_cache() -> None:
-    global _cached_disk_files
+    global _cached_disk_files, DISK_CACHE_DIR
+    DISK_CACHE_DIR = _resolve_cache_dir()
     if not DISK_CACHE_DIR.is_dir():
         return
     results = []
@@ -45,6 +58,29 @@ def _scan_disk_cache() -> None:
 
 
 _scan_disk_cache()
+
+
+def _get_master_graph() -> nx.MultiDiGraph:
+    """金沢全域を網羅するマスターグラフ（最大ファイル）をロード。"""
+    global _master_graph
+    if _master_graph is not None:
+        return _master_graph
+    _scan_disk_cache()
+    for _, _, _, _, p in _cached_disk_files:
+        if p.is_file():
+            try:
+                _master_graph = ox.load_graphml(p)
+                return _master_graph
+            except Exception:
+                continue
+    # フォールバックとして任意のgraphmlを探す
+    for p in DISK_CACHE_DIR.glob("*.graphml"):
+        try:
+            _master_graph = ox.load_graphml(p)
+            return _master_graph
+        except Exception:
+            continue
+    raise FileNotFoundError(f"OSM GraphML キャッシュが見つかりません: {DISK_CACHE_DIR}")
 
 
 def _bbox_key(
@@ -67,8 +103,10 @@ def _find_covering_disk_graph(
     lon_min: float, lat_min: float, lon_max: float, lat_max: float
 ) -> Path | None:
     """要求された bbox を内包する既存の .graphml キャッシュファイルを探す。"""
+    if not _cached_disk_files:
+        _scan_disk_cache()
     for lomin, lamin, lomax, lamax, p in _cached_disk_files:
-        if lomin <= lon_min and lamin <= lat_min and lomax >= lon_max and lamax >= lat_max:
+        if lomin <= lon_min + 1e-4 and lamin <= lat_min + 1e-4 and lomax >= lon_max - 1e-4 and lamax >= lat_max - 1e-4:
             return p
     if _cached_disk_files:
         return _cached_disk_files[0][4]
@@ -80,35 +118,6 @@ def last_graph_load_source() -> str:
     return _last_graph_source
 
 
-def _fetch_walk_graph(
-    lon_min: float,
-    lat_min: float,
-    lon_max: float,
-    lat_max: float,
-    *,
-    network_type: str = "walk",
-) -> nx.MultiDiGraph:
-    try:
-        G = ox.graph_from_bbox(
-            bbox=(lon_min, lat_min, lon_max, lat_max),
-            network_type=network_type,
-        )
-    except OSError as e:
-        if e.errno == errno.EINVAL and "cache" in str(e).lower():
-            old_cache = ox.settings.use_cache
-            ox.settings.use_cache = False
-            try:
-                G = ox.graph_from_bbox(
-                    bbox=(lon_min, lat_min, lon_max, lat_max),
-                    network_type=network_type,
-                )
-            finally:
-                ox.settings.use_cache = old_cache
-        else:
-            raise
-    return G
-
-
 def get_walk_graph_projected(
     lon_min: float,
     lat_min: float,
@@ -117,7 +126,7 @@ def get_walk_graph_projected(
     *,
     network_type: str = "walk",
 ) -> nx.MultiDiGraph:
-    """EPSG:6670 投影済みグラフ（メモリ → ディスク完全一致 → ディスク内包フォールバック → Overpass の順で取得）。"""
+    """EPSG:6670 投影済みグラフ（完全オフライン・安全キャッシュ優先）。"""
     global _last_graph_source
 
     key = _bbox_key(lon_min, lat_min, lon_max, lat_max)
@@ -125,42 +134,36 @@ def get_walk_graph_projected(
         _last_graph_source = "memory"
         return _walk_graph_cache[key]
 
+    # 1. 完全一致のディスクキャッシュ
     disk = _disk_path(key)
     if disk.is_file():
-        Gp = ox.load_graphml(disk)
-        _walk_graph_cache[key] = Gp
-        _last_graph_source = "disk"
-        return Gp
-
-    covering_disk = _find_covering_disk_graph(lon_min, lat_min, lon_max, lat_max)
-    if covering_disk is not None and covering_disk.is_file():
-        Gp = ox.load_graphml(covering_disk)
-        _walk_graph_cache[key] = Gp
-        _last_graph_source = "disk_fallback"
-        return Gp
-
-    try:
-        G = _fetch_walk_graph(lon_min, lat_min, lon_max, lat_max, network_type=network_type)
-        Gp = ox.project_graph(G, to_crs="EPSG:6670")
-        _walk_graph_cache[key] = Gp
-        _last_graph_source = "network"
-
         try:
-            DISK_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            ox.save_graphml(Gp, disk)
-            _scan_disk_cache()
-        except OSError:
+            Gp = ox.load_graphml(disk)
+            _walk_graph_cache[key] = Gp
+            _last_graph_source = "disk"
+            return Gp
+        except Exception:
             pass
 
-        return Gp
-    except Exception as net_err:
-        if _cached_disk_files:
-            fallback_path = _cached_disk_files[0][4]
-            Gp = ox.load_graphml(fallback_path)
+    # 2. 内包する既存キャッシュファイル
+    covering_disk = _find_covering_disk_graph(lon_min, lat_min, lon_max, lat_max)
+    if covering_disk is not None and covering_disk.is_file():
+        try:
+            Gp = ox.load_graphml(covering_disk)
             _walk_graph_cache[key] = Gp
-            _last_graph_source = "disk_emergency_fallback"
+            _last_graph_source = "disk_fallback"
             return Gp
-        raise net_err
+        except Exception:
+            pass
+
+    # 3. マスターグラフ（全域）
+    try:
+        Gp = _get_master_graph()
+        _walk_graph_cache[key] = Gp
+        _last_graph_source = "disk_master"
+        return Gp
+    except Exception as e:
+        raise RuntimeError(f"道路網キャッシュの読み込みに失敗しました: {e}") from e
 
 
 def warmup_bbox(
@@ -172,7 +175,10 @@ def warmup_bbox(
     network_type: str = "walk",
 ) -> None:
     """起動時プリロード用（金沢中心の典型 bbox）。"""
-    get_walk_graph_projected(lon_min, lat_min, lon_max, lat_max, network_type=network_type)
+    try:
+        get_walk_graph_projected(lon_min, lat_min, lon_max, lat_max, network_type=network_type)
+    except Exception:
+        pass
 
 
 def get_cs_snap_nodes(
