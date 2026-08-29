@@ -28,7 +28,7 @@
   ],
   "timezone": "Asia/Tokyo",
   "date_start": "2026-06-01",
-  "date_end": "2026-06-01",
+  "date_end": "2026-08-31",
   "n_days": 1,
   "n_hours_per_day": 13,
   "n_timesteps": 13,

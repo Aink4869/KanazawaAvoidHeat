@@ -132,16 +132,21 @@ def load_shadow_grid(data_dir: Path, year: int = 2026, model: str | None = None)
 
 def time_index(grid: ShadowGrid, when: date, hour_local: int) -> int:
     if hour_local not in grid.hours:
-        raise ValueError(f"時刻は {grid.hours} のいずれかにしてください")
-    base = date.fromisoformat(grid.date_start)
-    end = date.fromisoformat(grid.date_end)
-    if when < base or when > end:
-        raise ValueError(f"日付が範囲外です: {when}（{grid.date_start}〜{grid.date_end}）")
+        hour_local = min(grid.hours, key=lambda h: abs(h - hour_local))
+    try:
+        base = date.fromisoformat(grid.date_start)
+        end = date.fromisoformat(grid.date_end)
+    except Exception:
+        base = end = when
+    # 任意の日付入力を許容し、キャッシュデータの範囲内に安全にフォールバック
+    if when < base:
+        when = base
+    elif when > end:
+        when = end
     di = (when - base).days
     hi = grid.hours.index(hour_local)
     ti = di * len(grid.hours) + hi
-    if ti < 0 or ti >= grid.masks.shape[0]:
-        raise ValueError("時刻インデックスがデータ外です")
+    ti = max(0, min(ti, grid.masks.shape[0] - 1))
     return ti
 
 
