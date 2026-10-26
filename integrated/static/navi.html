@@ -359,20 +359,48 @@
     body.ui-pc #legend { bottom: 210px; }
     body.ui-pc.setup #legend { display: block; bottom: 16px; left: auto; right: 60px; }
     body.ui-pc #fabs { top: 24px; }
-    /* スマホは上の設定と下のシートのあいだに地図を残す */
+    /* スマホは地図を主役にし、設定は起点・終点だけを常時出す */
     body.ui-phone #setup {
-      max-height: max(140px, min(280px, calc(100% - var(--sheet-space, 220px) - 150px)));
+      max-height: none;
+      overflow: visible;
+      padding: 8px 10px;
+    }
+    body.ui-phone #setup .setup-head { margin-bottom: 2px; }
+    body.ui-phone #setup .setup-head h1 { font-size: 14px; }
+    body.ui-phone .od-row { margin: 2px 0; }
+    body.ui-phone .od-field { padding: 7px 8px; }
+    body.ui-phone #setupMore { display: none; }
+    body.ui-phone #setup.is-open {
+      max-height: min(42%, calc(100% - var(--sheet-space, 140px) - 12px));
+      overflow: auto;
       -webkit-overflow-scrolling: touch;
     }
-    body.ui-phone #legend {
-      left: 10px;
-      right: auto;
-      bottom: calc(var(--sheet-space, 220px) + 4px);
-      max-width: min(210px, calc(100% - 78px));
+    body.ui-phone #setup.is-open #setupMore { display: block; }
+    .more-btn { display: none; }
+    body.ui-phone .more-btn {
+      display: block; width: 100%; margin-top: 6px; border: 1px solid var(--line); background: #f8f9fa;
+      color: var(--blue); border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: 700; cursor: pointer;
     }
+    body.ui-phone #sheet { padding: 6px 10px calc(var(--safe-bottom) + 8px); }
+    body.ui-phone #sheet .grab { display: none; }
+    body.ui-phone #uiSwitch { margin: 0 0 6px; }
+    body.ui-phone #uiSwitch button { padding: 4px 2px; font-size: 12px; }
+    body.ui-phone .status {
+      margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    body.ui-phone .pill { padding: 8px 10px; }
+    body.ui-phone #btnClearPts { flex: 0 1 auto; }
+    body.ui-phone #legend {
+      left: 8px;
+      right: auto;
+      bottom: calc(var(--sheet-space, 140px) + 4px);
+      max-width: min(168px, calc(100% - 72px));
+      padding: 3px 6px;
+    }
+    body.ui-phone #legend .lg-cs svg { width: 22px; height: 26px; }
     body.ui-phone #signs,
     body.ui-phone #recenter {
-      bottom: calc(var(--sheet-space, 220px) + 8px);
+      bottom: calc(var(--sheet-space, 140px) + 8px);
     }
     body.ui-phone.framed { background: #c5c9ce; }
     body.ui-phone.framed #stage {
@@ -421,6 +449,8 @@
         <svg viewBox="0 0 24 24"><path fill="currentColor" d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3 5 6.99h3V14h2V6.99h3L9 3z"/></svg>
       </button>
     </div>
+    <button type="button" class="more-btn" id="btnSetupMore" aria-expanded="false">詳細設定</button>
+    <div id="setupMore">
     <div class="row2">
       <select id="csDest" aria-label="終点をクーリングシェルターから選ぶ"><option value="">終点を CS 一覧から…</option></select>
     </div>
@@ -473,6 +503,7 @@
     <div class="seg" id="sysSeg" role="group" aria-label="システム切り替え">
       <button type="button" data-sys="old"><span id="t_sysOld">旧システム</span><small id="t_sysOldN">建物の日陰のみ</small></button>
       <button type="button" data-sys="new"><span id="t_sysNew">最新システム</span><small id="t_sysNewN">建物＋樹木の日陰</small></button>
+    </div>
     </div>
   </section>
 
@@ -661,6 +692,7 @@
           lgCs: 'クーリングシェルター', lgCsSub: 'この絵の場所で涼めます',
           fromHere: '現在地から', fromHereT: '現在地を起点にする', locate: '現在地を表示',
           uiPc: 'PC画面', uiPhone: 'スマホ画面', uiSwitch: '画面の切り替え',
+          moreOpen: '詳細設定', moreClose: '設定を閉じる',
           locating: '現在地を取得しています…', needHttps: '現在地の取得には HTTPS 接続が必要です',
           noCs: 'CS 立ち寄りなし（直行）', v3d: '立体', v2d: '平面', autoOrig: '現在地を起点に設定しました',
           view3dT: '歩行者視点（3D）／北が上（2D）'
@@ -706,6 +738,7 @@
           lgCs: 'Cooling shelter', lgCsSub: 'Cool down at this picture',
           fromHere: 'From here', fromHereT: 'Use my location as origin', locate: 'Show my location',
           uiPc: 'PC', uiPhone: 'Phone', uiSwitch: 'Screen layout',
+          moreOpen: 'Options', moreClose: 'Hide options',
           locating: 'Getting your location…', needHttps: 'Location requires an HTTPS connection',
           noCs: 'No shelter stop (direct)', v3d: 'Tilted', v2d: 'Flat', autoOrig: 'Origin set to your location',
           view3dT: 'Walking view (3D) / North up (2D)'
@@ -719,6 +752,13 @@
       }
       function sysLabel(s) { return s === 'new' ? T('sysNew') : T('sysOld'); }
       function $(id) { return document.getElementById(id); }
+      function refreshSetupMore() {
+        var open = $('setup').classList.contains('is-open');
+        var b = $('btnSetupMore');
+        if (!b) return;
+        b.textContent = open ? T('moreClose') : T('moreOpen');
+        b.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
       var uiMode = document.body.classList.contains('ui-pc') ? 'pc' : 'phone';
       function syncUiChrome() {
         var phone = uiMode === 'phone';
@@ -738,6 +778,8 @@
         var u = new URL(location.href);
         u.searchParams.set('ui', uiMode);
         history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString() + u.hash);
+        if (uiMode === 'phone') $('setup').classList.remove('is-open');
+        refreshSetupMore();
         fitSetup();
         requestAnimationFrame(function () {
           if (map) layoutMap();
@@ -852,6 +894,7 @@
         $('uiPc').textContent = T('uiPc');
         $('uiPhone').textContent = T('uiPhone');
         $('uiSwitch').setAttribute('aria-label', T('uiSwitch'));
+        refreshSetupMore();
         syncUiChrome();
         refreshCsToggle();
         refreshLocToggle();
@@ -1021,6 +1064,12 @@
         if (!b || !b.getAttribute('data-ui')) return;
         setUiMode(b.getAttribute('data-ui'));
       });
+      $('btnSetupMore').onclick = function () {
+        $('setup').classList.toggle('is-open');
+        refreshSetupMore();
+        fitSetup();
+        requestAnimationFrame(function () { if (map) map.invalidateSize({ pan: false }); });
+      };
       window.addEventListener('resize', fitSetup);
       fitSetup();
       function setOrig(lat, lon, label, fromHere) {
