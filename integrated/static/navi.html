@@ -359,6 +359,21 @@
     body.ui-pc #legend { bottom: 210px; }
     body.ui-pc.setup #legend { display: block; bottom: 16px; left: auto; right: 60px; }
     body.ui-pc #fabs { top: 24px; }
+    /* スマホは上の設定と下のシートのあいだに地図を残す */
+    body.ui-phone #setup {
+      max-height: max(140px, min(280px, calc(100% - var(--sheet-space, 220px) - 150px)));
+      -webkit-overflow-scrolling: touch;
+    }
+    body.ui-phone #legend {
+      left: 10px;
+      right: auto;
+      bottom: calc(var(--sheet-space, 220px) + 4px);
+      max-width: min(210px, calc(100% - 78px));
+    }
+    body.ui-phone #signs,
+    body.ui-phone #recenter {
+      bottom: calc(var(--sheet-space, 220px) + 8px);
+    }
     body.ui-phone.framed { background: #c5c9ce; }
     body.ui-phone.framed #stage {
       top: 16px; bottom: 16px; width: min(400px, calc(100% - 32px)); left: 50%;
