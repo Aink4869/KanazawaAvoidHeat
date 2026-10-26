@@ -382,10 +382,7 @@ def route_shadow_aware_integrated(
 
     if factors is None:
         factors = RouteFactorsIntegrated()
-    if not factors.use_cooling_shelter:
-        raise ValueError(
-            "統合版ではクーリングシェルターへの立ち寄りが必須です（最低1か所）。"
-        )
+    use_cs = bool(factors.use_cooling_shelter)
 
     mask, active_grid, ti, shadow_fallback = resolve_route_mask(
         grid,
@@ -431,11 +428,11 @@ def route_shadow_aware_integrated(
 
     catalog = load_cs_catalog()
     t_cs = time.perf_counter()
-    cs_nodes = _precompute_cs_nodes(Gp, catalog, bbox_key)
+    cs_nodes = _precompute_cs_nodes(Gp, catalog, bbox_key) if use_cs else []
     timings["cs_nodes_s"] = time.perf_counter() - t_cs
 
     visited_site: CoolingShelterSite | None = None
-    dwell_cost = factors.weight_cooling_shelter * factors.cs_dwell_time_s
+    dwell_cost = factors.weight_cooling_shelter * factors.cs_dwell_time_s if use_cs else 0.0
     visit_meta: dict = {}
     cs_cap = (
         auto_cs_max_candidates
@@ -452,7 +449,13 @@ def route_shadow_aware_integrated(
     )
 
     t_route = time.perf_counter()
-    if visit_cs_id is not None:
+    if not use_cs:
+        try:
+            path = nx.shortest_path(Gp, on, dn, weight="nav_cost")
+        except nx.NetworkXNoPath as e:
+            raise ValueError("起点から終点への歩道ルートが見つかりませんでした") from e
+        visit_meta = {"mode": "none", "legs": 1}
+    elif visit_cs_id is not None:
         site = get_cs_by_id(visit_cs_id)
         if site is None:
             raise ValueError(f"cs_id={visit_cs_id} のクーリングシェルターが見つかりません")
@@ -538,7 +541,7 @@ def route_shadow_aware_integrated(
                 },
             )
 
-    if visited_site is None:
+    if use_cs and visited_site is None:
         raise RuntimeError("CS 立ち寄りが確定しませんでした（内部エラー）")
 
     coords_xy = [(float(Gp.nodes[n]["x"]), float(Gp.nodes[n]["y"])) for n in path]
@@ -561,17 +564,17 @@ def route_shadow_aware_integrated(
         "path_cost_total": float(sum(nav_lens)) + dwell_cost,
         "path_walk_cost": float(sum(nav_lens)),
         "cs_dwell_cost": float(dwell_cost),
-        "cs_visit_required": True,
+        "cs_visit_required": use_cs,
         "mean_shadow_fraction_on_path": float(np.mean(fracs)) if fracs else 0.0,
         "mean_slope_grade_abs": float(np.mean(grades)) if grades else 0.0,
         "approx_time_s": float(sum(lengths)) / factors.walk_speed_m_s
-        + factors.cs_dwell_time_s,
+        + (factors.cs_dwell_time_s if use_cs else 0.0),
         "timing_s": {k: round(v, 3) for k, v in timings.items()},
         "graph_cached": timings.get("load_graph_s", 0) < 0.5,
         "graph_load_source": last_graph_load_source(),
         "cooling_shelter_visit": {
-            "enabled": True,
-            "required_minimum": 1,
+            "enabled": use_cs,
+            "required_minimum": 1 if use_cs else 0,
             "mode": visit_meta.get("mode"),
             "legs": visit_meta.get("legs", 1),
             "cs_id": visited_site.cs_id if visited_site else None,
@@ -607,6 +610,23 @@ def route_shadow_aware_integrated(
     }
     if accuracy_delta is not None:
         stats["accuracy_vs_reference"] = accuracy_delta
+
+    try:
+        from integrated.nav_steps import build_nav_steps
+
+        cs_node = nearest_node(Gp, visited_site.x, visited_site.y) if visited_site else None
+        cs_name = visited_site.name if visited_site else None
+        stats["edge_shade_fractions"] = [round(float(f), 3) for f in fracs]
+        stats["nav_steps"] = build_nav_steps(
+            Gp, path, waypoint_node=cs_node, waypoint_name=cs_name, lang="ja"
+        )
+        stats["nav_steps_en"] = build_nav_steps(
+            Gp, path, waypoint_node=cs_node, waypoint_name=cs_name, lang="en"
+        )
+    except Exception as e:
+        stats["nav_steps"] = []
+        stats["nav_steps_en"] = []
+        stats["nav_steps_error"] = str(e)
 
     to_ll = Transformer.from_crs("EPSG:6670", "EPSG:4326", always_xy=True)
     coords_ll = []

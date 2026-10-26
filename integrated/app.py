@@ -100,13 +100,11 @@ class RouteFactorsIntegratedModel(BaseModel):
 
     @model_validator(mode="after")
     def integrated_rules(self):
-        self.use_cooling_shelter = True
         if not any(
             [self.use_distance, self.use_time, self.use_slope, self.use_shadow]
         ):
             raise ValueError(
                 "歩行区間のコスト（距離・時間・勾配・日陰）のうち、少なくとも1つを有効にしてください。"
-                "CS への立ち寄りは常に最低1か所必須です。"
             )
         return self
 
@@ -117,7 +115,7 @@ class RouteFactorsIntegratedModel(BaseModel):
             use_slope=self.use_slope,
             use_shadow=self.use_shadow,
             include_tree_shade=self.include_tree_shade,
-            use_cooling_shelter=True,
+            use_cooling_shelter=self.use_cooling_shelter,
             weight_distance=self.weight_distance,
             weight_time=self.weight_time,
             weight_slope=self.weight_slope,
@@ -189,6 +187,15 @@ def integrated_ui_compare():
     return FileResponse(p)
 
 
+@app.get("/navi")
+@app.get("/navi/new")
+def integrated_ui_navi():
+    p = STATIC / "navi.html"
+    if not p.is_file():
+        raise HTTPException(404, "integrated/static/navi.html がありません")
+    return FileResponse(p)
+
+
 @app.get("/en")
 def integrated_ui_en():
     return RedirectResponse(url="/?lang=en", status_code=307)
@@ -224,6 +231,8 @@ def api_health():
             "old": "http://127.0.0.1:8766/",
             "new": "http://127.0.0.1:8766/new",
             "compare": "http://127.0.0.1:8766/compare",
+            "navi": "http://127.0.0.1:8766/navi",
+            "navi_new": "http://127.0.0.1:8766/navi?sys=new",
         },
         "ui_en": "http://127.0.0.1:8766/?lang=en",
         "legacy_nav_app": "http://127.0.0.1:8765/ (別プロセス)",

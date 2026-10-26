@@ -281,6 +281,8 @@
         <a href="/new" id="navNew">最新システム</a>
         <span aria-hidden="true"> · </span>
         <a href="/compare" id="navCmp">ルート比較</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/navi" id="navNavi">ナビ表示</a>
       </nav>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -359,6 +361,7 @@
           精度比較（全57 CS 基準・やや遅い）
         </label>
         <button type="button" class="btn btn-primary" id="btnGo" disabled>ルートを計算・表示</button>
+        <button type="button" class="btn btn-primary" id="btnNavi" hidden style="margin-top:8px;background:#188038;border-color:#188038;">▲ ナビ表示に切り替え</button>
         <button type="button" class="btn btn-secondary" id="btnReset" style="margin-top:8px;">地点をクリア</button>
       </section>
     </aside>
@@ -454,6 +457,11 @@
         if (navOld) navOld.setAttribute('href', langHref('/'));
         if (navNew) navNew.setAttribute('href', langHref('/new'));
         if (navCmp) navCmp.setAttribute('href', langHref('/compare'));
+        var navNavi = document.getElementById('navNavi');
+        if (navNavi) {
+          navNavi.setAttribute('href', langHref(SYSTEM_NEW ? '/navi?sys=new' : '/navi'));
+          if (isEn) navNavi.textContent = 'Navigation view';
+        }
         if (SYSTEM_NEW) {
           if (navNew) navNew.className = 'current';
           var titleEl = document.getElementById('t_title');
@@ -1110,20 +1118,22 @@
             setStatus(isEn ? 'Enable Distance, Time, Slope, or Shade.' : '距離・時間・勾配・日陰のいずれかをオンに', 'err');
             return;
           }
+          document.getElementById('btnNavi').hidden = true;
+          var reqBody = {
+            orig_lat: orig.lat, orig_lon: orig.lon,
+            dest_lat: dest.lat, dest_lon: dest.lon,
+            route_date: document.getElementById('routeDate').value,
+            hour: parseInt(hourSel.value, 10),
+            year: 2026,
+            visit_cs_id: visitCsIdPayload(),
+            compare_accuracy: document.getElementById('f_compareAccuracy').checked,
+            lang: isEn ? 'en' : 'ja',
+            factors: factors
+          };
           var r = await fetch(apiUrl('/api/route_latlon'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              orig_lat: orig.lat, orig_lon: orig.lon,
-              dest_lat: dest.lat, dest_lon: dest.lon,
-              route_date: document.getElementById('routeDate').value,
-              hour: parseInt(hourSel.value, 10),
-              year: 2026,
-              visit_cs_id: visitCsIdPayload(),
-              compare_accuracy: document.getElementById('f_compareAccuracy').checked,
-              lang: isEn ? 'en' : 'ja',
-              factors: factors
-            })
+            body: JSON.stringify(reqBody)
           });
           var j = await r.json();
           if (!r.ok) {
@@ -1151,11 +1161,23 @@
           var latlngs = j.coordinates_latlon.map(function (p) { return [p[0], p[1]]; });
           lineLayer = L.polyline(latlngs, { color: ROUTE_COLOR, weight: 7, opacity: 0.92 }).addTo(map);
           map.fitBounds(lineLayer.getBounds(), { padding: [48, 48], maxZoom: 17 });
+          try {
+            sessionStorage.setItem('kah_navi_handoff', JSON.stringify({
+              req: reqBody, res: j, sys: SYSTEM_NEW ? 'new' : 'old'
+            }));
+            document.getElementById('btnNavi').hidden = false;
+          } catch (storageErr) { /* 保存できない場合はナビ画面側で再計算 */ }
         } catch (e) {
           setStatus((isEn ? 'Request failed: ' : '通信失敗: ') + e.message, 'err');
         } finally {
           updateGoButton();
         }
+      };
+
+      var btnNavi = document.getElementById('btnNavi');
+      if (isEn) btnNavi.textContent = '▲ Switch to navigation view';
+      btnNavi.onclick = function () {
+        location.href = (SYSTEM_NEW ? '/navi?sys=new&from=map' : '/navi?from=map') + (isEn ? '&lang=en' : '');
       };
 
       updatePointInfo();

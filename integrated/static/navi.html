@@ -1,0 +1,2337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#188038" />
+  <title>金沢 日陰ナビ（ナビ表示）</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    :root {
+      --green: #188038;
+      --green-dark: #0d652d;
+      --blue: #1a73e8;
+      --sun: #f29900;
+      --red: #d93025;
+      --text: #202124;
+      --muted: #5f6368;
+      --line: #dadce0;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; overflow: hidden; background: #e8eaed; color: var(--text);
+      font-family: "Roboto", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; }
+    #mapWrap { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #e5e3df; }
+    #map {
+      position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #e5e3df;
+      transform-origin: 50% 50%;
+    }
+    /* 歩行者視点（3D）: 地図を進行方向が上になるよう回転し、手前に傾ける */
+    body.v3d #mapWrap { background: linear-gradient(180deg, #9fc5e8 0%, #dfe9f2 32%, #dfe9f2 100%); }
+    body.v3d #map { clip-path: circle(50% at 50% 50%); will-change: transform; }
+    body.v3d .leaflet-control-container { display: none; }
+    #fog {
+      position: absolute; left: 0; right: 0; pointer-events: none; display: none; z-index: 1;
+      background: linear-gradient(180deg, rgba(223,233,242,1) 0%, rgba(223,233,242,.9) 30%, rgba(223,233,242,0) 100%);
+    }
+    body.v3d #fog { display: block; }
+
+    .hidden { display: none !important; }
+
+    /* ===== 設定カード（検索モード） ===== */
+    #setup {
+      position: absolute; z-index: 1000; top: calc(var(--safe-top) + 10px); left: 10px; right: 10px;
+      max-width: 460px; max-height: calc(100vh - var(--sheet-space, 200px) - var(--safe-top));
+      overflow: auto; margin: 0 auto; background: #fff;
+      border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.25); padding: 10px 12px 12px;
+    }
+    .setup-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .setup-head h1 { font-size: 15px; margin: 0; flex: 1; font-weight: 700; }
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: 50%; border: none; background: transparent;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted);
+      flex-shrink: 0;
+    }
+    .icon-btn:hover { background: #f1f3f4; }
+    .icon-btn svg { width: 22px; height: 22px; }
+    .od-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .od-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .od-dot.o { border: 3px solid var(--blue); background: #fff; }
+    .od-dot.d { background: var(--red); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+    .od-field {
+      flex: 1; min-width: 0; text-align: left; border: 1px solid var(--line); border-radius: 8px;
+      background: #f8f9fa; padding: 9px 10px; font-size: 14px; color: var(--text); cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .od-field.empty { color: var(--muted); }
+    .od-field.picking { border-color: var(--blue); background: #e8f0fe; color: var(--blue); }
+    .row2 { display: flex; gap: 8px; margin-top: 6px; }
+    .row2 > * { flex: 1; min-width: 0; }
+    select, input[type="date"] {
+      font: inherit; font-size: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 8px;
+      background: #fff; color: var(--text); width: 100%;
+    }
+    .loc-btn {
+      flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #aecbfa;
+      background: #e8f0fe; color: var(--blue); border-radius: 16px; padding: 6px 10px; font-size: 12px;
+      font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .loc-btn svg { width: 16px; height: 16px; }
+    .loc-btn.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .loc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .tg-row {
+      position: relative; display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 8px;
+      border: 1px solid var(--line); border-radius: 10px; cursor: pointer; user-select: none;
+    }
+    .tg-cs { width: 28px; height: 32px; flex-shrink: 0; display: flex; align-items: center; }
+    .tg-cs svg { width: 28px; height: 32px; display: block; }
+    .tg-row.off .tg-cs { opacity: 0.4; }
+    .cs-key {
+      display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 8px;
+      background: #e1f5fe; border-radius: 10px;
+    }
+    .cs-key svg { width: 36px; height: 42px; display: block; flex-shrink: 0; }
+    .factor-box { margin-top: 8px; }
+    .factor-title { font-size: 12px; font-weight: 700; }
+    .factor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin-top: 4px; }
+    .factor-grid label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .factor-hint { margin: 4px 0 0; font-size: 11px; color: var(--muted); line-height: 1.35; }
+    .cs-info { margin-top: 8px; padding: 8px; border: 1px solid #b3e5fc; background: #f4fbff; border-radius: 10px; }
+    .cs-info-head { display: flex; align-items: center; gap: 6px; }
+    .cs-info-head b { flex: 1; font-size: 13px; line-height: 1.3; }
+    .cs-info dl { margin: 6px 0 0; display: grid; grid-template-columns: 42px 1fr; gap: 2px 6px; font-size: 12px; }
+    .cs-info dt { color: var(--muted); }
+    .cs-info dd { margin: 0; }
+    .cs-info .mini { margin-top: 8px; width: 100%; border: none; background: var(--blue); color: #fff; border-radius: 8px; padding: 8px; font-weight: 700; cursor: pointer; }
+    .cs-pin { line-height: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); cursor: pointer; }
+    .cs-pin svg { width: 36px; height: 42px; display: block; pointer-events: none; }
+    .leaflet-popup-content { margin: 10px 12px; font-size: 13px; line-height: 1.4; }
+    .leaflet-popup-content .cs-pop-btn {
+      margin-top: 8px; width: 100%; border: none; background: #1a73e8; color: #fff;
+      border-radius: 8px; padding: 7px; font-weight: 700; cursor: pointer;
+    }
+    .tg-text { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; line-height: 1.25; }
+    .tg-text small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+    .tg-row input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .tg-sw { width: 36px; height: 20px; border-radius: 10px; background: #bdc1c6; position: relative; transition: background .15s; flex-shrink: 0; }
+    .tg-sw::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .15s;
+    }
+    .tg-row input:checked + .tg-sw { background: var(--blue); }
+    .tg-row input:checked + .tg-sw::after { left: 18px; }
+    .tg-row input:focus-visible + .tg-sw { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .seg { display: flex; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .seg button {
+      flex: 1; border: none; background: #fff; padding: 7px 4px; font-size: 13px; font-weight: 700;
+      color: var(--muted); cursor: pointer; line-height: 1.2;
+    }
+    .seg button small { display: block; font-size: 10px; font-weight: 400; }
+    .seg button + button { border-left: 1px solid var(--line); }
+    .seg button.on[data-sys="old"] { background: #e8f0fe; color: var(--blue); }
+    .seg button.on[data-sys="new"] { background: #e6f4ea; color: var(--green); }
+
+    /* ===== 案内バナー（ナビモード） ===== */
+    #banner {
+      position: absolute; z-index: 1000; top: calc(var(--safe-top) + 10px); left: 10px; right: 10px;
+      max-width: 460px; margin: 0 auto;
+    }
+    .bn-main {
+      background: var(--green); color: #fff; border-radius: 14px; display: flex; align-items: center;
+      gap: 12px; padding: 12px 10px 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.35); position: relative;
+    }
+    .bn-main.with-then { border-bottom-left-radius: 0; }
+    .bn-main.off { background: var(--red); }
+    .bn-main.done { background: var(--green-dark); }
+    .bn-arrow { width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .bn-arrow svg { width: 56px; height: 56px; }
+    .bn-text { flex: 1; min-width: 0; }
+    .bn-dist { font-size: 15px; font-weight: 500; opacity: .95; }
+    .bn-road { font-size: 24px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+    .bn-sub { font-size: 12px; opacity: .9; margin-top: 2px; }
+    .bn-btn {
+      width: 42px; height: 42px; border-radius: 50%; border: none; background: rgba(255,255,255,.18);
+      color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+    }
+    .bn-btn svg { width: 22px; height: 22px; }
+    .bn-then {
+      display: inline-flex; align-items: center; gap: 6px; background: var(--green-dark); color: #fff;
+      padding: 6px 12px 7px; border-radius: 0 0 12px 12px; font-size: 14px; font-weight: 500;
+      box-shadow: 0 2px 6px rgba(0,0,0,.3);
+    }
+    .bn-then svg { width: 20px; height: 20px; }
+
+    /* ===== 右側の丸ボタン ===== */
+    #fabs {
+      position: absolute; z-index: 1000; right: 12px; top: calc(var(--safe-top) + 168px);
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .fab {
+      width: 48px; height: 48px; border-radius: 50%; border: none; background: #fff; color: #3c4043;
+      box-shadow: 0 1px 4px rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 12px; font-weight: 700; flex-direction: column; line-height: 1.05;
+    }
+    .fab svg { width: 22px; height: 22px; }
+    .fab.on { color: var(--blue); }
+    .fab .fab-l { font-size: 9px; font-weight: 500; margin-top: 1px; }
+    .fab.sys-old { color: var(--blue); }
+    .fab.sys-new { color: var(--green); }
+
+    /* ===== 左下の日陰標識 ===== */
+    #signs {
+      position: absolute; z-index: 1000; left: 12px; bottom: calc(var(--safe-bottom) + 132px);
+      display: flex; gap: 6px;
+    }
+    .sign {
+      background: #fff; border: 2px solid #202124; border-radius: 8px; padding: 3px 6px 4px; text-align: center;
+      min-width: 50px; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+    .sign .v { font-size: 20px; font-weight: 700; line-height: 1.05; }
+    .sign .l { font-size: 9px; color: #3c4043; }
+    .sign.sun .v { color: var(--sun); }
+    .sign.shade .v { color: var(--blue); }
+
+    #recenter {
+      position: absolute; z-index: 1000; left: 50%; transform: translateX(-50%);
+      bottom: calc(var(--safe-bottom) + 132px); border: none; background: #fff; color: var(--blue);
+      border-radius: 20px; padding: 9px 16px; font-size: 14px; font-weight: 700;
+      box-shadow: 0 1px 4px rgba(0,0,0,.35); cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    #recenter svg { width: 18px; height: 18px; }
+
+    #legend {
+      position: absolute; z-index: 999; left: 12px; bottom: calc(var(--safe-bottom) + 186px);
+      background: rgba(255,255,255,.92); border-radius: 8px; padding: 4px 8px; font-size: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    #legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
+    #legend .lg-cs { display: flex; align-items: flex-start; gap: 6px; margin-top: 4px; line-height: 1.25; max-width: 180px; }
+    #legend .lg-cs svg { width: 28px; height: 32px; flex-shrink: 0; }
+
+    /* ===== 下部シート ===== */
+    #sheet {
+      position: absolute; z-index: 1001; left: 0; right: 0; bottom: 0; max-width: 560px; margin: 0 auto;
+      background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 -2px 10px rgba(0,0,0,.2);
+      padding: 8px 16px calc(var(--safe-bottom) + 12px);
+    }
+    .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 8px; }
+    .sheet-fab {
+      position: absolute; right: 12px; top: -64px; width: 48px; height: 48px; border-radius: 50%; border: none;
+      background: #fff; color: #5f6368; box-shadow: 0 1px 4px rgba(0,0,0,.35); display: flex;
+      align-items: center; justify-content: center; cursor: pointer;
+    }
+    .sheet-fab svg { width: 24px; height: 24px; }
+    .sheet-fab.on { color: var(--blue); }
+    body.nav .sheet-fab { display: none; }
+    .sheet-attr {
+      position: absolute; right: 4px; top: -15px; font-size: 9px; line-height: 13px; padding: 0 4px;
+      background: rgba(255,255,255,.75); border-radius: 3px; color: #3c4043;
+    }
+    .sheet-attr a { color: inherit; }
+    .nav-row { display: flex; align-items: center; gap: 12px; }
+    .round {
+      width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--line); background: #fff;
+      display: flex; align-items: center; justify-content: center; cursor: pointer; color: #3c4043; flex-shrink: 0;
+    }
+    .round svg { width: 24px; height: 24px; }
+    .round.danger { background: var(--red); border: none; color: #fff; }
+    .eta { flex: 1; text-align: center; min-width: 0; }
+    .eta-time { font-size: 26px; font-weight: 700; color: var(--green); line-height: 1.15; }
+    .eta-sub { font-size: 14px; color: var(--muted); }
+    .eta-sys { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .sim-row { display: flex; gap: 8px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+    .chip {
+      border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 5px 12px; font-size: 13px;
+      cursor: pointer; color: #3c4043; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .chip.on { background: #e8f0fe; border-color: #aecbfa; color: var(--blue); }
+    .chip svg { width: 16px; height: 16px; }
+
+    .sum-time { font-size: 24px; font-weight: 700; color: var(--green); }
+    .sum-time span { font-size: 16px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+    .sum-meta { font-size: 13px; color: var(--muted); margin: 2px 0 10px; line-height: 1.5; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    #btnClearPts { flex: 1 0 100%; }
+    .pill {
+      border: 1px solid var(--line); background: #fff; color: var(--blue); border-radius: 20px;
+      padding: 10px 14px; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex;
+      align-items: center; justify-content: center; gap: 6px;
+    }
+    .pill svg { width: 18px; height: 18px; }
+    .pill.primary { background: var(--blue); border-color: var(--blue); color: #fff; flex: 1; }
+    .pill:disabled { opacity: .5; cursor: default; }
+    .status { font-size: 13px; color: var(--muted); margin-bottom: 8px; line-height: 1.45; }
+    .status.err { color: var(--red); }
+    .status.ok { color: var(--green); }
+
+    /* ===== ステップ一覧 ===== */
+    #stepsPanel {
+      position: absolute; z-index: 1002; left: 0; right: 0; bottom: 0; max-width: 560px; margin: 0 auto;
+      height: 72%; background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 -2px 12px rgba(0,0,0,.3);
+      display: flex; flex-direction: column;
+    }
+    .sp-head { display: flex; align-items: center; padding: 12px 12px 8px 16px; border-bottom: 1px solid var(--line); }
+    .sp-head h2 { flex: 1; margin: 0; font-size: 16px; }
+    .sp-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted); font-weight: 400; }
+    #stepsList { overflow-y: auto; flex: 1; padding: 4px 0 calc(var(--safe-bottom) + 8px); }
+    .st-item { display: flex; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #f1f3f4; cursor: pointer; }
+    .st-item:hover { background: #f8f9fa; }
+    .st-item.past { opacity: .45; }
+    .st-item.cur { background: #e6f4ea; }
+    .st-ico { width: 30px; height: 30px; flex-shrink: 0; color: #3c4043; }
+    .st-ico svg { width: 30px; height: 30px; }
+    .st-body { flex: 1; min-width: 0; }
+    .st-ins { font-size: 14px; font-weight: 500; }
+    .st-meta { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+    .shbar { width: 60px; height: 6px; border-radius: 3px; background: #fde7b0; overflow: hidden; }
+    .shbar i { display: block; height: 100%; background: var(--blue); }
+
+    #navHelp {
+      position: absolute; z-index: 1005; inset: 0; background: rgba(32,33,36,.45);
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .help-card {
+      background: #fff; border-radius: 16px; max-width: 420px; width: 100%; max-height: 90%; overflow-y: auto;
+      padding: 16px 18px; box-shadow: 0 4px 20px rgba(0,0,0,.35);
+    }
+    .help-card h2 { margin: 0 0 8px; font-size: 17px; }
+    .help-card ul { margin: 0 0 14px; padding-left: 18px; font-size: 14px; line-height: 1.6; }
+    .help-card li { margin-bottom: 6px; }
+    .help-card .pill { width: 100%; }
+
+    #toast {
+      position: absolute; z-index: 1003; left: 50%; transform: translateX(-50%);
+      top: calc(var(--safe-top) + 170px); background: rgba(32,33,36,.92); color: #fff; padding: 9px 14px;
+      border-radius: 10px; font-size: 13px; max-width: 86%; text-align: center; pointer-events: none;
+      transition: opacity .25s; opacity: 0;
+    }
+    #toast.show { opacity: 1; }
+
+    #busy {
+      position: absolute; z-index: 1004; inset: 0; background: rgba(255,255,255,.55);
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+      font-size: 14px; color: var(--text);
+    }
+    .spinner { width: 36px; height: 36px; border: 4px solid #d2e3fc; border-top-color: var(--blue); border-radius: 50%; animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .me-wrap { width: 44px; height: 44px; }
+    .me { width: 44px; height: 44px; transition: transform .2s linear; }
+    .my-wrap { position: relative; width: 60px; height: 60px; }
+    .my-beam { position: absolute; inset: 0; width: 60px; height: 60px; display: none; }
+    .my-wrap.has-heading .my-beam { display: block; }
+    .my-dot {
+      position: absolute; left: 21px; top: 21px; width: 18px; height: 18px; border-radius: 50%;
+      background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.35);
+    }
+    .my-dot::after {
+      content: ""; position: absolute; inset: -10px; border-radius: 50%; background: rgba(26,115,232,.28);
+      animation: mypulse 2s ease-out infinite; z-index: -1;
+    }
+    @keyframes mypulse { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+    .pin-ico { filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+    .cs-badge {
+      background: #fff; border: 2px solid #01579b; color: #01579b; border-radius: 10px; font-size: 11px;
+      font-weight: 700; padding: 1px 5px; box-shadow: 0 1px 3px rgba(0,0,0,.3); white-space: nowrap;
+    }
+
+    @media (min-width: 900px) {
+      #setup, #banner { left: 16px; right: auto; width: 420px; margin: 0; }
+      #sheet, #stepsPanel { left: 16px; right: auto; width: 420px; margin: 0; bottom: 16px; border-radius: 16px; }
+      #stepsPanel { height: 70%; }
+      #signs, #recenter { bottom: 156px; }
+      #recenter { left: 226px; }
+      #legend { bottom: 210px; }
+      body.setup #legend { display: block; bottom: 16px; left: auto; right: 60px; }
+      #fabs { top: 24px; }
+      #toast { left: 226px; }
+    }
+  </style>
+</head>
+<body class="setup">
+  <div id="mapWrap">
+    <div id="map" role="application" aria-label="地図"></div>
+    <div id="fog"></div>
+  </div>
+
+  <!-- 検索モード -->
+  <section id="setup" aria-label="ルート設定">
+    <div class="setup-head">
+      <button class="icon-btn" id="btnBackMap" title="通常表示に戻る" aria-label="通常表示に戻る">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+      </button>
+      <h1 id="t_title">日陰ナビ（ナビ表示）</h1>
+      <button class="icon-btn" id="btnLang" title="English / 日本語" style="font-size:12px;font-weight:700;width:auto;padding:0 8px;border-radius:14px;">EN</button>
+    </div>
+    <div class="od-row">
+      <span class="od-dot o"></span>
+      <button class="od-field empty" id="fOrig">起点を選択（地図をタップ）</button>
+      <button class="loc-btn" id="btnMyLoc" title="現在地を起点にする" aria-label="現在地を起点にする" disabled>
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2h-2.06zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>
+        <span id="t_fromHere">現在地から</span>
+      </button>
+    </div>
+    <div class="od-row">
+      <span class="od-dot d"></span>
+      <button class="od-field empty" id="fDest">終点を選択（地図をタップ）</button>
+      <button class="icon-btn" id="btnSwap" title="起点と終点を入れ替え" aria-label="起点と終点を入れ替え">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3 5 6.99h3V14h2V6.99h3L9 3z"/></svg>
+      </button>
+    </div>
+    <div class="row2">
+      <select id="csDest" aria-label="終点をクーリングシェルターから選ぶ"><option value="">終点を CS 一覧から…</option></select>
+    </div>
+    <div class="row2">
+      <select id="csInfoPick" aria-label="クーリングシェルターの情報を見る"><option value="">施設の情報を見る…</option></select>
+    </div>
+    <div id="csInfo" class="cs-info hidden">
+      <div class="cs-info-head">
+        <b id="csInfoName">—</b>
+        <button type="button" class="icon-btn" id="csInfoClose" title="閉じる" aria-label="閉じる">×</button>
+      </div>
+      <dl>
+        <dt id="t_csAddr">住所</dt><dd id="csInfoAddr">—</dd>
+        <dt id="t_csOpen">開館</dt><dd id="csInfoOpen">—</dd>
+        <dt id="t_csCap">定員</dt><dd id="csInfoCap">—</dd>
+        <dt id="t_csRest">休憩</dt><dd id="csInfoRest">—</dd>
+        <dt id="t_csNotes">備考</dt><dd id="csInfoNotes">—</dd>
+      </dl>
+      <button type="button" class="mini" id="btnCsAsDest">この施設を終点にする</button>
+    </div>
+    <div class="factor-box">
+      <div class="factor-title" id="t_factors">歩行区間のコスト要素</div>
+      <div class="factor-grid">
+        <label><input type="checkbox" id="f_dist" checked /> <span id="t_f_dist">距離</span></label>
+        <label><input type="checkbox" id="f_time" checked /> <span id="t_f_time">時間</span></label>
+        <label><input type="checkbox" id="f_slope" checked /> <span id="t_f_slope">勾配</span></label>
+        <label><input type="checkbox" id="f_shadow" checked /> <span id="t_f_shadow">日陰の多い道</span></label>
+      </div>
+      <p class="factor-hint" id="t_factorsHint">チェックした項目だけが道のコストに使われます。</p>
+    </div>
+    <div class="row2">
+      <input type="date" id="routeDate" aria-label="日付" />
+      <select id="hour" aria-label="時刻"></select>
+    </div>
+    <label class="tg-row" id="tgCs">
+      <span class="tg-cs" id="tgCsPic" aria-hidden="true"></span>
+      <span class="tg-text"><span id="t_useCs">クーリングシェルター立ち寄りを必須にする</span><small id="t_useCsSub">オン：必ず1か所に寄ります</small></span>
+      <input type="checkbox" id="useCs" checked />
+      <span class="tg-sw" aria-hidden="true"></span>
+    </label>
+    <label class="tg-row off" id="tgLoc">
+      <span class="tg-text"><span id="t_showLoc">現在地を表示する</span><small id="t_showLocSub">オフのときは位置を出しません</small></span>
+      <input type="checkbox" id="showLoc" />
+      <span class="tg-sw" aria-hidden="true"></span>
+    </label>
+    <div class="cs-key">
+      <span id="csKeyPic" aria-hidden="true"></span>
+      <span class="tg-text"><b id="t_csKey">クーリングシェルター</b><small id="t_csKeySub">地図のこの絵の場所で涼めます</small></span>
+    </div>
+    <div class="seg" id="sysSeg" role="group" aria-label="システム切り替え">
+      <button type="button" data-sys="old"><span id="t_sysOld">旧システム</span><small id="t_sysOldN">建物の日陰のみ</small></button>
+      <button type="button" data-sys="new"><span id="t_sysNew">最新システム</span><small id="t_sysNewN">建物＋樹木の日陰</small></button>
+    </div>
+  </section>
+
+  <!-- ナビモード -->
+  <section id="banner" class="hidden" aria-live="polite">
+    <div class="bn-main" id="bnMain">
+      <div class="bn-arrow" id="bnArrow"></div>
+      <div class="bn-text">
+        <div class="bn-dist" id="bnDist"></div>
+        <div class="bn-road" id="bnRoad"></div>
+        <div class="bn-sub" id="bnSub"></div>
+      </div>
+      <button class="bn-btn" id="bnSearch" title="ルートを変更" aria-label="ルートを変更">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button>
+    </div>
+    <div class="bn-then hidden" id="bnThen"><span id="t_then">次に</span><span id="bnThenArrow"></span><span id="bnThenRoad"></span></div>
+  </section>
+
+  <div id="fabs" class="hidden">
+    <button class="fab on" id="fab3d" title="歩行者視点（3D）／北が上（2D）" aria-label="歩行者視点（3D）／北が上（2D）"></button>
+    <button class="fab on" id="fabVoice" title="音声案内" aria-label="音声案内"></button>
+    <button class="fab" id="fabSys" title="旧／最新の切り替え" aria-label="旧／最新の切り替え"></button>
+    <button class="fab on" id="fabShade" title="日陰の色分け表示" aria-label="日陰の色分け表示">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M11.99 18.54 4.62 12.81 3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
+      <span class="fab-l" id="t_fabShade">日陰</span>
+    </button>
+    <button class="fab" id="fabOverview" title="全体表示" aria-label="全体表示">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z"/></svg>
+    </button>
+    <button class="fab" id="fabHelp" title="使い方" aria-label="使い方">
+      <span style="font-size:20px;font-weight:800;line-height:1">?</span><span class="fab-l" id="t_helpBtn">使い方</span>
+    </button>
+  </div>
+
+  <div id="signs" class="hidden">
+    <div class="sign" id="signNow"><div class="v" id="signNowV">—</div><div class="l" id="signNowL">現在地</div></div>
+    <div class="sign shade"><div class="v" id="signRestV">—</div><div class="l" id="t_restShade">残り日陰</div></div>
+  </div>
+
+  <div id="legend">
+    <div id="lgShadeRow" class="hidden"><i style="background:var(--blue)"></i><span id="t_lgShade">日陰の区間</span></div>
+    <div id="lgSunRow" class="hidden"><i style="background:var(--sun)"></i><span id="t_lgSun">日なたの区間</span></div>
+    <div class="lg-cs"><span id="lgCsPic" aria-hidden="true"></span><span><b id="t_lgCs">クーリングシェルター</b><br><span id="t_lgCsSub">この絵の場所で涼めます</span></span></div>
+  </div>
+
+  <button id="recenter" class="hidden">
+    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+    <span id="t_recenter">現在地に戻る</span>
+  </button>
+
+  <!-- 下部シート -->
+  <section id="sheet">
+    <button class="sheet-fab" id="btnLocate" title="現在地を表示" aria-label="現在地を表示">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2h-2.06zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>
+    </button>
+    <div class="sheet-attr"><a href="https://maps.gsi.go.jp/copyright/ja.html" target="_blank" rel="noopener">国土地理院</a></div>
+    <div class="grab"></div>
+
+    <div id="sheetSetup">
+      <div class="status" id="status">サーバーに接続しています…</div>
+      <div id="sumBox" class="hidden">
+        <div class="sum-time" id="sumTime"></div>
+        <div class="sum-meta" id="sumMeta"></div>
+      </div>
+      <div class="btn-row">
+        <button class="pill primary" id="btnSearch" disabled>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M21.71 11.29l-9-9a1 1 0 0 0-1.42 0l-9 9a1 1 0 0 0 0 1.42l9 9a1 1 0 0 0 1.42 0l9-9a1 1 0 0 0 0-1.42zM14 14.5V12h-4v3H8v-4a1 1 0 0 1 1-1h5V7.5l3.5 3.5-3.5 3.5z"/></svg>
+          <span id="t_search">ルート検索</span>
+        </button>
+        <button class="pill primary hidden" id="btnStart">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+          <span id="t_start">ナビ開始</span>
+        </button>
+        <button class="pill hidden" id="btnStepsSetup">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+          <span id="t_steps">ステップ</span>
+        </button>
+        <button type="button" class="pill" id="btnClearPts"><span id="t_clearPts">地点をクリア</span></button>
+      </div>
+    </div>
+
+    <div id="sheetNav" class="hidden">
+      <div class="nav-row">
+        <button class="round danger" id="btnEnd" title="ナビ終了" aria-label="ナビ終了">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+        <div class="eta">
+          <div class="eta-time" id="etaTime">—</div>
+          <div class="eta-sub" id="etaSub">—</div>
+          <div class="eta-sys" id="etaSys"></div>
+        </div>
+        <button class="round" id="btnStepsNav" title="ステップ一覧" aria-label="ステップ一覧">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 4l2.29 2.29-2.88 2.88 1.42 1.42 2.88-2.88L20 10V4h-6zm-4 0H4v6l2.29-2.29 4.71 4.7V20h2v-8.41l-5.29-5.3L10 4z"/></svg>
+        </button>
+      </div>
+      <div class="sim-row">
+        <button class="chip" id="chipMode"></button>
+        <button class="chip" id="chipPlay"></button>
+        <button class="chip" id="chipSpeed"></button>
+      </div>
+    </div>
+  </section>
+
+  <section id="stepsPanel" class="hidden" aria-label="ステップ一覧">
+    <div class="sp-head">
+      <div style="flex:1;min-width:0;">
+        <h2 id="spTitle">ルートの詳細</h2>
+        <p id="spSub"></p>
+      </div>
+      <button class="icon-btn" id="btnStepsClose" aria-label="閉じる">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+    <div id="stepsList"></div>
+  </section>
+
+  <section id="navHelp" class="hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-card">
+      <h2 id="helpTitle">ナビ画面の見かた</h2>
+      <ul id="helpList"></ul>
+      <button class="pill primary" id="btnHelpOk">わかった</button>
+    </div>
+  </section>
+
+  <div id="toast" role="status"></div>
+  <div id="busy" class="hidden"><div class="spinner"></div><div id="busyText">ルート計算中…</div></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var API_BASE = window.location.protocol === 'file:'
+        ? (localStorage.getItem('integrated_api_base') || 'http://127.0.0.1:8766')
+        : '';
+      function apiUrl(p) { return API_BASE + p; }
+
+      var params = new URLSearchParams(location.search);
+      var isEn = (params.get('lang') || 'ja').toLowerCase() === 'en';
+      var pathNorm = (location.pathname || '').replace(/\/+$/, '');
+      var sys = (params.get('sys') || (/\/new$/.test(pathNorm) ? 'new' : 'old')) === 'new' ? 'new' : 'old';
+
+      var I18N = {
+        ja: {
+          title: '日陰ナビ（ナビ表示）', origin: '起点を選択（地図をタップ）', dest: '終点を選択（地図をタップ）',
+          pickOrig: '地図をタップして起点を指定してください', pickDest: '地図をタップして終点を指定してください',
+          csDest: '終点を CS 一覧から…', sysOld: '旧システム', sysNew: '最新システム',
+          sysOldN: '建物の日陰のみ', sysNewN: '建物＋樹木の日陰', sysOldShort: '旧', sysNewShort: '新',
+          search: 'ルート検索', start: 'ナビ開始', steps: 'ステップ', clearPts: '地点をクリア', computing: 'ルート計算中…',
+          computingOther: '{sys}のルートを計算中…', connecting: 'サーバーに接続しています…',
+          ready: '起点と終点を地図で指定し、「ルート検索」を押してください。',
+          readyRoute: 'ルートを表示しました。「ナビ開始」で案内を始めます。', apiOff: 'サーバーに接続できません。',
+          min: '分', hr: '時間', arriveAt: '到着', then: '次に', shade: '日陰', sun: '日なた', here: '現在地',
+          restShade: '残り日陰', recenter: '現在地に戻る', lgShade: '日陰の区間', lgSun: '日なたの区間',
+          offRoute: 'ルートから外れました', reroute: 'タップして再検索', arrived: '目的地に到着しました',
+          arrivedSub: 'おつかれさまでした', destination: '目的地', mOrig: '起点', mDest: '終点',
+          myLoc: '現在地', gpsNg: '現在地を取得できませんでした', outArea: '現在地が研究範囲（金沢中心部）から離れています',
+          farSim: '現在地がルートから離れているため、デモ走行（矢印が自動で進む）で表示しています', gpsOn: '実際の現在地で案内しています',
+          sim: 'デモ走行', gps: '現在地で案内', play: '再生', pause: '一時停止',
+          helpTitle: 'ナビ画面の見かた',
+          help1: '<b>上の緑の帯</b>：次に曲がる方向と、そこまでの距離です。',
+          help2: '<b>青い矢印</b>：あなた（歩いている人）の位置と向きです。',
+          help3: '<b>デモ走行</b>：パソコンなど現在地が取れないときは、矢印が自動でルートを歩いて案内の様子を見せます。スマホでルート上にいると、実際の現在地での案内に自動で切り替わります。下の「一時停止」「×4（速さ）」で操作できます。',
+          help4: '<b>3D ／ 2D ボタン（右上）</b>：3D は進む方向が常に画面の上になり、地図を斜めに倒して「歩いている人の目線」で見る表示です。2D は北が上の普通の地図です。',
+          help5: '<b>線の色</b>：青＝日陰の区間、オレンジ＝日なたの区間。左下は「今いる所が日陰か」と「この先の日陰の割合」です。',
+          helpOk: 'わかった', helpBtn: '使い方',
+          to3d: '3D：進む方向が上になる、歩いている人の目線の表示', to2d: '2D：北が上の普通の地図',
+          stopCs: '立ち寄り', dwell: '滞在', walk: '徒歩', inclDwell: '（滞在込み）',
+          csArrive: 'クーリングシェルター「{n}」に到着。涼んでから出発しましょう。',
+          detailTitle: 'ルートの詳細', fabShade: '日陰', voiceOn: '音声', voiceOff: '消音',
+          ahead: '{d}先、{i}', startSay: '案内を開始します。{i}', sysSwitched: '{sys}のルートに切り替えました',
+          needOD: '起点と終点を指定してください', errPrefix: 'エラー: ', backMap: '通常表示に戻る',
+          shadeRoute: '日陰率', swap: '入れ替えました',
+          useCs: 'クーリングシェルター立ち寄りを必須にする', useCsOn: 'オン：必ず1か所に寄ります', useCsOff: '必須を解除：目的地へ直行',
+          showLoc: '現在地を表示する', showLocOn: '青い点を表示中。起点に使えます', showLocOff: 'オフのときは位置を出しません',
+          factors: '歩行区間のコスト要素', factorsHint: 'チェックした項目だけが道のコストに使われます。',
+          fDist: '距離', fTime: '時間', fSlope: '勾配', fShadow: '日陰の多い道',
+          factorNeed: '距離・時間・勾配・日陰のいずれかをオンにしてください',
+          csInfoPick: '施設の情報を見る…', csAddr: '住所', csOpen: '開館', csCap: '定員', csRest: '休憩', csNotes: '備考',
+          csAsDest: 'この施設を終点にする', csClose: '閉じる',
+          csKey: 'クーリングシェルター', csKeySub: '地図のこの絵の場所で涼めます',
+          lgCs: 'クーリングシェルター', lgCsSub: 'この絵の場所で涼めます',
+          fromHere: '現在地から', fromHereT: '現在地を起点にする', locate: '現在地を表示',
+          locating: '現在地を取得しています…', needHttps: '現在地の取得には HTTPS 接続が必要です',
+          noCs: 'CS 立ち寄りなし（直行）', v3d: '立体', v2d: '平面', autoOrig: '現在地を起点に設定しました',
+          view3dT: '歩行者視点（3D）／北が上（2D）'
+        },
+        en: {
+          title: 'Shade Navi (navigation view)', origin: 'Choose origin (tap map)', dest: 'Choose destination (tap map)',
+          pickOrig: 'Tap the map to set the origin', pickDest: 'Tap the map to set the destination',
+          csDest: 'Destination from cooling shelters…', sysOld: 'Previous', sysNew: 'Latest',
+          sysOldN: 'Building shade only', sysNewN: 'Building + tree shade', sysOldShort: 'Prev', sysNewShort: 'New',
+          search: 'Directions', start: 'Start', steps: 'Steps', clearPts: 'Clear points', computing: 'Computing route…',
+          computingOther: 'Computing {sys} route…', connecting: 'Connecting to server…',
+          ready: 'Set origin and destination on the map, then tap Directions.',
+          readyRoute: 'Route ready. Tap Start to begin navigation.', apiOff: 'Cannot reach the server.',
+          min: 'min', hr: 'h', arriveAt: 'arrival', then: 'Then', shade: 'Shade', sun: 'Sun', here: 'Now',
+          restShade: 'Shade ahead', recenter: 'Re-center', lgShade: 'Shaded', lgSun: 'Sunny',
+          offRoute: 'You are off route', reroute: 'Tap to reroute', arrived: 'You have arrived',
+          arrivedSub: 'Great job staying cool', destination: 'Destination', mOrig: 'Origin', mDest: 'Destination',
+          myLoc: 'My location', gpsNg: 'Could not get your location', outArea: 'Your location is outside the study area (central Kanazawa)',
+          farSim: 'You are far from the route, so a demo walk (the arrow moves by itself) is shown', gpsOn: 'Navigating with your real location',
+          sim: 'Demo walk', gps: 'Live location', play: 'Play', pause: 'Pause',
+          helpTitle: 'How to read the navigation screen',
+          help1: '<b>Green banner</b>: the next turn and the distance to it.',
+          help2: '<b>Blue arrow</b>: you (the walker) and your heading.',
+          help3: '<b>Demo walk</b>: when your location is unavailable (e.g. on a PC), the arrow walks the route by itself to preview the guidance. On a phone near the route it switches to your real location automatically. Use Pause / ×4 (speed) below.',
+          help4: '<b>3D / 2D button (top right)</b>: 3D keeps your walking direction at the top and tilts the map for a walker\'s eye view. 2D is a normal north-up map.',
+          help5: '<b>Line colours</b>: blue = shaded, orange = sunny. Bottom left shows whether you are in shade now and the shade share ahead.',
+          helpOk: 'Got it', helpBtn: 'Help',
+          to3d: '3D: walker\'s eye view, walking direction up', to2d: '2D: normal north-up map',
+          stopCs: 'Stop', dwell: 'stay', walk: 'walk', inclDwell: ' (incl. stay)',
+          csArrive: 'Arrived at cooling shelter "{n}". Cool down before continuing.',
+          detailTitle: 'Route details', fabShade: 'Shade', voiceOn: 'Voice', voiceOff: 'Muted',
+          ahead: 'In {d}, {i}', startSay: 'Starting navigation. {i}', sysSwitched: 'Switched to the {sys} route',
+          needOD: 'Set origin and destination', errPrefix: 'Error: ', backMap: 'Back to map view',
+          shadeRoute: 'Shade', swap: 'Swapped',
+          useCs: 'Require a cooling-shelter stop', useCsOn: 'On: always stop at one shelter', useCsOff: 'Requirement off: go straight',
+          showLoc: 'Show my location', showLocOn: 'Blue dot on. You can use it as the origin', showLocOff: 'Off: your location stays hidden',
+          factors: 'Route cost factors', factorsHint: 'Only checked items are used in the walking cost.',
+          fDist: 'Distance', fTime: 'Time', fSlope: 'Slope', fShadow: 'Prefer shade',
+          factorNeed: 'Turn on distance, time, slope, or shade',
+          csInfoPick: 'View a shelter…', csAddr: 'Address', csOpen: 'Hours', csCap: 'Capacity', csRest: 'Rest', csNotes: 'Notes',
+          csAsDest: 'Use this shelter as destination', csClose: 'Close',
+          csKey: 'Cooling shelter', csKeySub: 'This picture marks a place to cool down',
+          lgCs: 'Cooling shelter', lgCsSub: 'Cool down at this picture',
+          fromHere: 'From here', fromHereT: 'Use my location as origin', locate: 'Show my location',
+          locating: 'Getting your location…', needHttps: 'Location requires an HTTPS connection',
+          noCs: 'No shelter stop (direct)', v3d: 'Tilted', v2d: 'Flat', autoOrig: 'Origin set to your location',
+          view3dT: 'Walking view (3D) / North up (2D)'
+        }
+      };
+      function T(k, vars) {
+        var d = isEn ? I18N.en : I18N.ja;
+        var s = d[k] != null ? d[k] : (I18N.ja[k] != null ? I18N.ja[k] : k);
+        if (vars) Object.keys(vars).forEach(function (n) { s = s.replace('{' + n + '}', vars[n]); });
+        return s;
+      }
+      function sysLabel(s) { return s === 'new' ? T('sysNew') : T('sysOld'); }
+      function $(id) { return document.getElementById(id); }
+
+      // ---------- アイコン ----------
+      var P_STRAIGHT = 'M12 2.5 5.5 9h4.5v12.5h4V9h4.5z';
+      var P_RIGHT = 'M6 21.5V12a4 4 0 0 1 4-4h6V4l6 6-6 6v-4h-6v9.5z';
+      var P_UTURN = 'M17 21.5V9a5 5 0 0 0-10 0v4H3.5l5 6 5-6H10V9a2 2 0 0 1 4 0v12.5z';
+      var P_PIN = 'M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z';
+      function arrowSvg(step) {
+        var t = step ? step.type : 'depart';
+        var m = step ? step.modifier : 'straight';
+        var body;
+        if (t === 'arrive') {
+          body = '<path fill="currentColor" d="' + P_PIN + '"/>';
+        } else if (t === 'waypoint') {
+          body = '<circle cx="12" cy="12" r="10" fill="currentColor"/>' +
+            '<text x="12" y="15.6" text-anchor="middle" font-size="9.5" font-weight="700" ' +
+            'font-family="Roboto,Arial,sans-serif" fill="#188038">CS</text>';
+        } else if (m === 'right') {
+          body = '<path fill="currentColor" d="' + P_RIGHT + '"/>';
+        } else if (m === 'left') {
+          body = '<g transform="translate(24 0) scale(-1 1)"><path fill="currentColor" d="' + P_RIGHT + '"/></g>';
+        } else if (m === 'slight right') {
+          body = '<g transform="rotate(40 12 12)"><path fill="currentColor" d="' + P_STRAIGHT + '"/></g>';
+        } else if (m === 'slight left') {
+          body = '<g transform="rotate(-40 12 12)"><path fill="currentColor" d="' + P_STRAIGHT + '"/></g>';
+        } else if (m === 'sharp right') {
+          body = '<g transform="rotate(45 12 12)"><path fill="currentColor" d="' + P_RIGHT + '"/></g>';
+        } else if (m === 'sharp left') {
+          body = '<g transform="translate(24 0) scale(-1 1) rotate(45 12 12)"><path fill="currentColor" d="' + P_RIGHT + '"/></g>';
+        } else if (m === 'uturn') {
+          body = '<path fill="currentColor" d="' + P_UTURN + '"/>';
+        } else {
+          body = '<path fill="currentColor" d="' + P_STRAIGHT + '"/>';
+        }
+        return '<svg viewBox="0 0 24 24" aria-hidden="true">' + body + '</svg>';
+      }
+      var ICON_VOICE_ON = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
+      var ICON_VOICE_OFF = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>';
+      var CS_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56" aria-hidden="true">'
+        + '<path d="M4 26 L24 6 L44 26Z" fill="#0288d1" stroke="#01579b" stroke-width="1.8" stroke-linejoin="round"/>'
+        + '<rect x="9" y="26" width="30" height="24" rx="2" fill="#e1f5fe" stroke="#01579b" stroke-width="1.8"/>'
+        + '<circle cx="19" cy="36" r="3.1" fill="#01579b"/>'
+        + '<path d="M13.2 49.2c.7-6.2 2.8-9.2 5.8-9.2s5.1 3 5.8 9.2z" fill="#01579b"/>'
+        + '</svg>';
+      var ICON_PLAY = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';
+      var ICON_PAUSE = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+      var ICON_GPS = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2h-2.06z"/></svg>';
+      var ICON_SIM = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg>';
+
+      // ---------- UI テキスト ----------
+      function applyI18n() {
+        document.documentElement.lang = isEn ? 'en' : 'ja';
+        document.title = T('title');
+        $('t_title').textContent = T('title');
+        $('t_sysOld').textContent = T('sysOld');
+        $('t_sysNew').textContent = T('sysNew');
+        $('t_sysOldN').textContent = T('sysOldN');
+        $('t_sysNewN').textContent = T('sysNewN');
+        $('t_search').textContent = T('search');
+        $('t_clearPts').textContent = T('clearPts');
+        $('t_start').textContent = T('start');
+        $('t_steps').textContent = T('steps');
+        $('t_then').textContent = T('then');
+        $('t_restShade').textContent = T('restShade');
+        $('t_recenter').textContent = T('recenter');
+        $('t_lgShade').textContent = T('lgShade');
+        $('t_lgSun').textContent = T('lgSun');
+        $('t_fabShade').textContent = T('fabShade');
+        $('spTitle').textContent = T('detailTitle');
+        $('btnLang').textContent = isEn ? '日本語' : 'EN';
+        $('btnBackMap').title = T('backMap');
+        $('csDest').options[0].textContent = T('csDest');
+        $('t_fromHere').textContent = T('fromHere');
+        $('btnMyLoc').title = T('fromHereT');
+        $('btnMyLoc').setAttribute('aria-label', T('fromHereT'));
+        $('btnLocate').title = T('locate');
+        $('btnLocate').setAttribute('aria-label', T('locate'));
+        $('fab3d').title = T('view3dT');
+        $('fab3d').setAttribute('aria-label', T('view3dT'));
+        $('t_useCs').textContent = T('useCs');
+        $('t_showLoc').textContent = T('showLoc');
+        $('t_csKey').textContent = T('csKey');
+        $('t_csKeySub').textContent = T('csKeySub');
+        $('t_lgCs').textContent = T('lgCs');
+        $('t_lgCsSub').textContent = T('lgCsSub');
+        $('t_factors').textContent = T('factors');
+        $('t_factorsHint').textContent = T('factorsHint');
+        $('t_f_dist').textContent = T('fDist');
+        $('t_f_time').textContent = T('fTime');
+        $('t_f_slope').textContent = T('fSlope');
+        $('t_f_shadow').textContent = T('fShadow');
+        $('t_csAddr').textContent = T('csAddr');
+        $('t_csOpen').textContent = T('csOpen');
+        $('t_csCap').textContent = T('csCap');
+        $('t_csRest').textContent = T('csRest');
+        $('t_csNotes').textContent = T('csNotes');
+        $('btnCsAsDest').textContent = T('csAsDest');
+        $('csInfoClose').title = T('csClose');
+        $('csInfoClose').setAttribute('aria-label', T('csClose'));
+        if ($('csInfoPick').options.length) $('csInfoPick').options[0].textContent = T('csInfoPick');
+        $('tgCsPic').innerHTML = CS_ICON_SVG;
+        $('csKeyPic').innerHTML = CS_ICON_SVG;
+        $('lgCsPic').innerHTML = CS_ICON_SVG;
+        $('t_helpBtn').textContent = T('helpBtn');
+        $('fabHelp').title = T('helpBtn');
+        refreshCsToggle();
+        refreshLocToggle();
+        refreshOdFields();
+      }
+
+      // ---------- 地図 ----------
+      // 出典表示は地図の外（シート上）に固定する。3D 表示で地図要素ごと回転するため。
+      var map = L.map('map', { zoomControl: false, attributionControl: false, maxZoom: 19 })
+        .setView([36.5665, 136.6595], 15);
+      L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+        maxNativeZoom: 18, maxZoom: 19
+      }).addTo(map);
+      if (window.innerWidth >= 900) L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      var pinIcon = L.divIcon({
+        className: '', iconSize: [30, 40], iconAnchor: [15, 38],
+        html: '<svg class="pin-ico" width="30" height="40" viewBox="0 0 24 32"><path fill="#d93025" stroke="#a50e0e" stroke-width="1" d="M12 1a10 10 0 0 0-10 10c0 7.5 10 19 10 19s10-11.5 10-19A10 10 0 0 0 12 1z"/><circle cx="12" cy="11" r="3.6" fill="#7b0d0d"/></svg>'
+      });
+      var meIcon = L.divIcon({
+        className: '', iconSize: [44, 44], iconAnchor: [22, 22],
+        html: '<div class="me-wrap"><svg class="me" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20" fill="rgba(26,115,232,.16)"/>' +
+          '<path d="M22 7 33 35 22 28.5 11 35z" fill="#1a73e8" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg></div>'
+      });
+
+      var routeGroup = L.layerGroup().addTo(map);
+      var traveledLine = null;
+      var mOrig = null, mDest = null, mMe = null;
+      var csLayer = L.layerGroup().addTo(map);
+      var csFeatures = [];
+
+      // ---------- 状態 ----------
+      var orig = null, dest = null, origLabel = null, destLabel = null;
+      var pickTarget = null;
+      var meta = null;
+      var baseFactors = {
+        use_distance: true, use_time: true, use_slope: true, use_shadow: true,
+        use_cooling_shelter: true, weight_distance: 1, weight_time: 1, weight_slope: 3,
+        weight_shadow: 4, weight_cooling_shelter: 2.5, walk_speed_m_s: 1.2,
+        prefer_shade: true, cs_dwell_time_s: 600
+      };
+      var routes = { old: null, new: null };
+      var fixedVisitCsId = null;
+      var shadeColoring = true;
+      var voiceOn = true;
+      var nav = null;
+      var wakeLock = null;
+      var CENTER = [36.5665, 136.6595];
+      var AREA_RADIUS_M = 6000;
+      var myFix = null, myMarker = null, myAccCircle = null, liveWatchId = null;
+      var pendingFromHere = false, pendingCenter = false, autoOrigDone = false;
+      var TILT_DEG = 52;
+      var viewPref3d = true, view3d = false, viewHeading = 0;
+
+      // ---------- 共通ユーティリティ ----------
+      var toastTimer = null;
+      function toast(msg, ms) {
+        var el = $('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.classList.remove('show'); }, ms || 3200);
+      }
+      function setStatus(text, cls) {
+        var el = $('status');
+        el.textContent = text;
+        el.className = 'status' + (cls ? ' ' + cls : '');
+      }
+      function busy(on, text) {
+        $('busy').classList.toggle('hidden', !on);
+        if (text) $('busyText').textContent = text;
+      }
+      function fmtDist(m) {
+        if (!isFinite(m)) return '—';
+        if (m >= 1000) return (m / 1000).toFixed(1) + ' km';
+        if (m >= 100) return (Math.round(m / 10) * 10) + ' m';
+        return Math.max(0, Math.round(m / 5) * 5) + ' m';
+      }
+      function fmtDur(sec) {
+        var mins = Math.max(1, Math.round(sec / 60));
+        if (mins < 60) return mins + ' ' + T('min');
+        var h = Math.floor(mins / 60), mm = mins % 60;
+        return h + ' ' + T('hr') + ' ' + mm + ' ' + T('min');
+      }
+      function fmtClock(d) {
+        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      }
+      function pct(v) { return Math.round((v || 0) * 100) + '%'; }
+      function speak(text) {
+        if (!voiceOn || !window.speechSynthesis || !text) return;
+        try {
+          var u = new SpeechSynthesisUtterance(text);
+          u.lang = isEn ? 'en-US' : 'ja-JP';
+          u.rate = 1.05;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(u);
+        } catch (e) { /* 音声非対応ブラウザ */ }
+      }
+      async function fetchJson(url, opts) {
+        var r = await fetch(url, opts);
+        var raw = await r.text();
+        var j = null;
+        try { j = raw ? JSON.parse(raw) : null; } catch (e) { j = null; }
+        if (!r.ok || j == null) {
+          var detail = j && j.detail ? (typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail)) : (raw || '').slice(0, 160);
+          throw new Error((r.status ? 'HTTP ' + r.status + ' ' : '') + (detail || T('apiOff')));
+        }
+        return j;
+      }
+
+      // ---------- 起点・終点 ----------
+      function refreshOdFields() {
+        var fo = $('fOrig'), fd = $('fDest');
+        fo.textContent = orig ? (origLabel || (T('mOrig') + ' ' + orig.lat.toFixed(5) + ', ' + orig.lon.toFixed(5))) : T('origin');
+        fd.textContent = dest ? (destLabel || (T('mDest') + ' ' + dest.lat.toFixed(5) + ', ' + dest.lon.toFixed(5))) : T('dest');
+        fo.classList.toggle('empty', !orig);
+        fd.classList.toggle('empty', !dest);
+        fo.classList.toggle('picking', pickTarget === 'orig');
+        fd.classList.toggle('picking', pickTarget === 'dest');
+        $('btnMyLoc').classList.toggle('on', !!(orig && orig.fromHere));
+        $('btnSearch').disabled = !(orig && dest);
+      }
+      function invalidateRoutes() {
+        routes = { old: null, new: null };
+        fixedVisitCsId = null;
+        routeGroup.clearLayers();
+        $('sumBox').classList.add('hidden');
+        $('btnStart').classList.add('hidden');
+        $('btnStepsSetup').classList.add('hidden');
+        $('btnSearch').classList.remove('hidden');
+        document.body.classList.remove('has-summary');
+        fitSetup();
+      }
+      function fitSetup() {
+        var sh = $('sheet') ? $('sheet').offsetHeight : 180;
+        document.documentElement.style.setProperty('--sheet-space', (sh + 28) + 'px');
+      }
+      function clearPoints() {
+        if (nav) {
+          if (nav.raf) cancelAnimationFrame(nav.raf);
+          if (nav.watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(nav.watchId);
+          if (window.speechSynthesis) window.speechSynthesis.cancel();
+          releaseWakeLock();
+          if (mMe) { map.removeLayer(mMe); mMe = null; }
+          nav = null;
+          setView3d(false);
+          document.body.classList.remove('nav');
+          document.body.classList.add('setup');
+          ['banner', 'fabs', 'signs', 'sheetNav', 'recenter'].forEach(function (id) { $(id).classList.add('hidden'); });
+          ['setup', 'sheetSetup'].forEach(function (id) { $(id).classList.remove('hidden'); });
+        }
+        orig = dest = null;
+        origLabel = destLabel = null;
+        pickTarget = null;
+        if (mOrig) { map.removeLayer(mOrig); mOrig = null; }
+        if (mDest) { map.removeLayer(mDest); mDest = null; }
+        $('csDest').value = '';
+        if ($('csInfoPick')) { $('csInfoPick').value = ''; showCsInfo(null); }
+        invalidateRoutes();
+        refreshOdFields();
+        setStatus(T('ready'));
+        map.closePopup();
+      }
+      $('btnClearPts').onclick = clearPoints;
+      window.addEventListener('resize', fitSetup);
+      fitSetup();
+      function setOrig(lat, lon, label, fromHere) {
+        orig = { lat: lat, lon: lon, fromHere: !!fromHere };
+        origLabel = label || null;
+        if (mOrig) map.removeLayer(mOrig);
+        mOrig = L.circleMarker([lat, lon], { radius: 8, color: '#1a73e8', weight: 4, fillColor: '#fff', fillOpacity: 1 })
+          .addTo(map).bindTooltip(label || T('mOrig'));
+        invalidateRoutes();
+        refreshOdFields();
+      }
+      function setDest(lat, lon, label) {
+        dest = { lat: lat, lon: lon };
+        destLabel = label || null;
+        if (mDest) map.removeLayer(mDest);
+        mDest = L.marker([lat, lon], { icon: pinIcon }).addTo(map).bindTooltip(label || T('mDest'));
+        invalidateRoutes();
+        refreshOdFields();
+      }
+
+      $('fOrig').onclick = function () {
+        pickTarget = pickTarget === 'orig' ? null : 'orig';
+        refreshOdFields();
+        if (pickTarget) setStatus(T('pickOrig'));
+      };
+      $('fDest').onclick = function () {
+        pickTarget = pickTarget === 'dest' ? null : 'dest';
+        refreshOdFields();
+        if (pickTarget) setStatus(T('pickDest'));
+      };
+      $('btnSwap').onclick = function () {
+        if (!orig && !dest) return;
+        var o = orig, ol = origLabel, d = dest, dl = destLabel;
+        if (mOrig) { map.removeLayer(mOrig); mOrig = null; }
+        if (mDest) { map.removeLayer(mDest); mDest = null; }
+        orig = dest = null;
+        if (d) setOrig(d.lat, d.lon, dl);
+        if (o) setDest(o.lat, o.lon, ol);
+        $('csDest').value = '';
+        toast(T('swap'), 1500);
+      };
+      // ---------- 現在地（青い点） ----------
+      function inStudyArea(lat, lon) { return map.distance([lat, lon], CENTER) <= AREA_RADIUS_M; }
+      function geoAvailable(userInitiated) {
+        if (!navigator.geolocation) { if (userInitiated) toast(T('gpsNg')); return false; }
+        if (!window.isSecureContext) { if (userInitiated) toast(T('needHttps'), 4500); return false; }
+        return true;
+      }
+      function startLiveLocation(userInitiated) {
+        if (!geoAvailable(userInitiated)) return false;
+        if (liveWatchId != null) return true;
+        liveWatchId = navigator.geolocation.watchPosition(onLiveFix, function (err) {
+          if (userInitiated || pendingFromHere || pendingCenter) toast(T('gpsNg'));
+          pendingFromHere = pendingCenter = false;
+          $('btnLocate').classList.remove('on');
+          if (err && err.code === 1 && liveWatchId != null) {
+            navigator.geolocation.clearWatch(liveWatchId);
+            liveWatchId = null;
+          }
+        }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+        return true;
+      }
+      function onLiveFix(pos) {
+        var c = pos.coords;
+        var hd = (c.heading != null && isFinite(c.heading) && (c.speed || 0) > 0.3) ? c.heading : null;
+        myFix = { lat: c.latitude, lon: c.longitude, acc: c.accuracy || 0, heading: hd, t: Date.now() };
+        drawMyLocation();
+        if (!$('showLoc').checked) return;
+        if (pendingFromHere) { pendingFromHere = false; useHereAsOrigin(); }
+        if (pendingCenter) { pendingCenter = false; centerOnMe(); }
+      }
+      function stopLiveLocation() {
+        if (liveWatchId != null) {
+          navigator.geolocation.clearWatch(liveWatchId);
+          liveWatchId = null;
+        }
+        if (myMarker) { map.removeLayer(myMarker); myMarker = null; }
+        if (myAccCircle) { map.removeLayer(myAccCircle); myAccCircle = null; }
+        $('btnLocate').classList.remove('on');
+        pendingFromHere = pendingCenter = false;
+      }
+      function refreshLocToggle() {
+        var on = $('showLoc').checked;
+        $('tgLoc').classList.toggle('off', !on);
+        $('t_showLocSub').textContent = on ? T('showLocOn') : T('showLocOff');
+        $('btnMyLoc').disabled = !on;
+        if (on) startLiveLocation(true);
+        else stopLiveLocation();
+      }
+      function drawMyLocation() {
+        if (!myFix || !$('showLoc').checked) return;
+        var hideForNav = nav && nav.mode === 'gps';
+        if (hideForNav) {
+          if (myMarker) { map.removeLayer(myMarker); myMarker = null; }
+          if (myAccCircle) { map.removeLayer(myAccCircle); myAccCircle = null; }
+          return;
+        }
+        var ll = [myFix.lat, myFix.lon];
+        if (!myAccCircle) {
+          myAccCircle = L.circle(ll, { radius: myFix.acc, color: '#1a73e8', weight: 1, opacity: 0.35,
+            fillColor: '#1a73e8', fillOpacity: 0.1, interactive: false }).addTo(map);
+        } else {
+          myAccCircle.setLatLng(ll).setRadius(myFix.acc);
+        }
+        if (!myMarker) {
+          myMarker = L.marker(ll, {
+            icon: L.divIcon({
+              className: '', iconSize: [60, 60], iconAnchor: [30, 30],
+              html: '<div class="my-wrap"><svg class="my-beam" viewBox="0 0 60 60" aria-hidden="true">' +
+                '<path d="M30 30 L19 3 A28 28 0 0 1 41 3 Z" fill="rgba(26,115,232,.28)"/></svg><div class="my-dot"></div></div>'
+            }),
+            zIndexOffset: 900, interactive: false, keyboard: false
+          }).addTo(map);
+        } else {
+          myMarker.setLatLng(ll);
+        }
+        var el = myMarker.getElement();
+        var wrap = el && el.querySelector('.my-wrap');
+        if (wrap) {
+          wrap.classList.toggle('has-heading', myFix.heading != null);
+          var beam = wrap.querySelector('.my-beam');
+          if (beam && myFix.heading != null) beam.style.transform = 'rotate(' + myFix.heading.toFixed(0) + 'deg)';
+        }
+      }
+      function centerOnMe() {
+        if (!myFix) return;
+        $('btnLocate').classList.add('on');
+        if (!inStudyArea(myFix.lat, myFix.lon)) toast(T('outArea'), 4500);
+        map.setView([myFix.lat, myFix.lon], Math.max(map.getZoom(), 17));
+      }
+      function useHereAsOrigin() {
+        if (!myFix) return;
+        if (!inStudyArea(myFix.lat, myFix.lon)) toast(T('outArea'), 4500);
+        setOrig(myFix.lat, myFix.lon, T('myLoc'), true);
+        pickTarget = null;
+        refreshOdFields();
+        setStatus(dest ? T('ready') : T('pickDest'));
+        if (dest) {
+          map.fitBounds(L.latLngBounds([[myFix.lat, myFix.lon], [dest.lat, dest.lon]]), fitPadding());
+        } else {
+          map.setView([myFix.lat, myFix.lon], Math.max(map.getZoom(), 16));
+        }
+      }
+      $('showLoc').onchange = function () { refreshLocToggle(); };
+      $('btnMyLoc').onclick = function () {
+        if (!$('showLoc').checked) return;
+        if (myFix && Date.now() - myFix.t < 120000) { useHereAsOrigin(); return; }
+        if (!startLiveLocation(true)) return;
+        pendingFromHere = true;
+        toast(T('locating'), 2500);
+      };
+      $('btnLocate').onclick = function () {
+        if (!$('showLoc').checked) {
+          $('showLoc').checked = true;
+          refreshLocToggle();
+          pendingCenter = true;
+          toast(T('locating'), 2500);
+          return;
+        }
+        if (myFix && Date.now() - myFix.t < 120000) { centerOnMe(); return; }
+        if (!startLiveLocation(true)) return;
+        pendingCenter = true;
+        toast(T('locating'), 2500);
+      };
+      map.on('dragstart', function () { if (!nav) $('btnLocate').classList.remove('on'); });
+
+      // ---------- CS 立ち寄り ON / OFF ----------
+      function useCs() { return $('useCs').checked; }
+      function refreshCsToggle() {
+        var on = useCs();
+        $('tgCs').classList.toggle('off', !on);
+        $('t_useCsSub').textContent = on ? T('useCsOn') : T('useCsOff');
+      }
+      $('useCs').onchange = function () {
+        refreshCsToggle();
+        invalidateRoutes();
+        if (orig && dest) setStatus(T('ready'));
+      };
+
+      map.on('click', function (e) {
+        if (nav) return;
+        var lat = e.latlng.lat, lon = e.latlng.lng;
+        var target = pickTarget || (!orig ? 'orig' : (!dest ? 'dest' : null));
+        if (!target) return;
+        if (target === 'orig') setOrig(lat, lon);
+        else { $('csDest').value = ''; setDest(lat, lon); }
+        pickTarget = null;
+        refreshOdFields();
+        setStatus(orig && dest ? T('ready') : (orig ? T('pickDest') : T('pickOrig')));
+      });
+
+      // ---------- CS ----------
+      async function loadCoolingShelters() {
+        var j = await fetchJson(apiUrl('/api/cooling-shelters?lang=' + (isEn ? 'en' : 'ja')));
+        csFeatures = j.features || [];
+        var sel = $('csDest');
+        sel.innerHTML = '';
+        var o0 = document.createElement('option');
+        o0.value = '';
+        o0.textContent = T('csDest');
+        sel.appendChild(o0);
+        csLayer.clearLayers();
+        var infoSel = $('csInfoPick');
+        var infoKeep = infoSel.value;
+        infoSel.innerHTML = '';
+        var i0 = document.createElement('option');
+        i0.value = '';
+        i0.textContent = T('csInfoPick');
+        infoSel.appendChild(i0);
+        csFeatures.forEach(function (f) {
+          var p = f.properties || {};
+          var c = f.geometry.coordinates;
+          var o = document.createElement('option');
+          o.value = String(p.cs_id);
+          o.textContent = p.cs_name || 'CS';
+          sel.appendChild(o);
+          var io = document.createElement('option');
+          io.value = String(p.cs_id);
+          io.textContent = p.cs_name || 'CS';
+          infoSel.appendChild(io);
+          var m = L.marker([c[1], c[0]], {
+            icon: L.divIcon({
+              className: '', iconSize: [36, 42], iconAnchor: [18, 40],
+              html: '<div class="cs-pin">' + CS_ICON_SVG + '</div>'
+            }),
+            zIndexOffset: 800,
+            bubblingMouseEvents: false
+          });
+          m.bindPopup(csPopupHtml(p), {
+            maxWidth: 280, offset: [0, -32], autoPan: true,
+            autoPanPaddingTopLeft: L.point(24, 220), autoPanPaddingBottomRight: L.point(24, 140)
+          });
+          m.on('click', function (ev) {
+            L.DomEvent.stopPropagation(ev);
+            openCsPopup(m, p);
+          });
+          csLayer.addLayer(m);
+        });
+        if (infoKeep) infoSel.value = infoKeep;
+      }
+      var pickedCs = null;
+      function csText(v) { return (v == null || v === '') ? '—' : String(v); }
+      function showCsInfo(p) {
+        pickedCs = p || null;
+        if (!p) { $('csInfo').classList.add('hidden'); return; }
+        $('csInfo').classList.remove('hidden');
+        $('csInfoName').textContent = p.cs_name || '—';
+        $('csInfoAddr').textContent = csText(p.address);
+        $('csInfoOpen').textContent = csText(p.open_time);
+        $('csInfoCap').textContent = csText(p.capacity);
+        $('csInfoRest').textContent = csText(p.rest_space);
+        $('csInfoNotes').textContent = csText(p.notes);
+        if ($('csInfoPick').value !== String(p.cs_id)) $('csInfoPick').value = String(p.cs_id);
+      }
+      function csPopupHtml(p) {
+        var rows = ['<div style="font-size:13px;line-height:1.4">'];
+        rows.push('<b>' + escapeHtml(p.cs_name || '') + '</b>');
+        rows.push('<div>' + escapeHtml(T('csAddr')) + ': ' + escapeHtml(csText(p.address)) + '</div>');
+        rows.push('<div>' + escapeHtml(T('csOpen')) + ': ' + escapeHtml(csText(p.open_time)) + '</div>');
+        rows.push('<div>' + escapeHtml(T('csCap')) + ': ' + escapeHtml(csText(p.capacity)) + '</div>');
+        rows.push('<div>' + escapeHtml(T('csRest')) + ': ' + escapeHtml(csText(p.rest_space)) + '</div>');
+        if (p.notes) rows.push('<div>' + escapeHtml(T('csNotes')) + ': ' + escapeHtml(p.notes) + '</div>');
+        rows.push('<button type="button" class="cs-pop-btn" data-cs-dest="' + escapeHtml(p.cs_id) + '">' + escapeHtml(T('csAsDest')) + '</button>');
+        rows.push('</div>');
+        return rows.join('');
+      }
+      function openCsPopup(marker, p) {
+        showCsInfo(p);
+        marker.openPopup();
+        var card = $('csInfo');
+        if (card && !card.classList.contains('hidden')) card.scrollIntoView({ block: 'nearest' });
+      }
+      $('csInfoPick').onchange = function () {
+        var f = csFeatureById(this.value);
+        if (!f) { showCsInfo(null); return; }
+        var c = f.geometry.coordinates;
+        showCsInfo(f.properties || {});
+        map.panTo([c[1], c[0]]);
+      };
+      $('csInfoClose').onclick = function () {
+        $('csInfoPick').value = '';
+        showCsInfo(null);
+        map.closePopup();
+      };
+      map.on('popupopen', function (e) {
+        var root = e.popup.getElement();
+        if (!root) return;
+        var btn = root.querySelector('[data-cs-dest]');
+        if (!btn) return;
+        btn.onclick = function (ev) {
+          L.DomEvent.stopPropagation(ev);
+          var f = csFeatureById(btn.getAttribute('data-cs-dest'));
+          if (!f) return;
+          var c = f.geometry.coordinates;
+          var p = f.properties || {};
+          $('csDest').value = String(p.cs_id);
+          setDest(c[1], c[0], p.cs_name);
+          setStatus(orig ? T('ready') : T('pickOrig'));
+          map.closePopup();
+        };
+      });
+      $('btnCsAsDest').onclick = function () {
+        if (!pickedCs || pickedCs.cs_id == null) return;
+        var f = csFeatureById(pickedCs.cs_id);
+        if (!f) return;
+        var c = f.geometry.coordinates;
+        $('csDest').value = String(pickedCs.cs_id);
+        setDest(c[1], c[0], pickedCs.cs_name);
+        setStatus(orig ? T('ready') : T('pickOrig'));
+      };
+      function csFeatureById(id) {
+        for (var i = 0; i < csFeatures.length; i++) {
+          if (String((csFeatures[i].properties || {}).cs_id) === String(id)) return csFeatures[i];
+        }
+        return null;
+      }
+      $('csDest').onchange = function () {
+        var f = csFeatureById(this.value);
+        if (!f) return;
+        var c = f.geometry.coordinates;
+        var p = f.properties || {};
+        showCsInfo(p);
+        setDest(c[1], c[0], p.cs_name);
+        map.panTo([c[1], c[0]]);
+        setStatus(orig ? T('ready') : T('pickOrig'));
+      };
+
+      // ---------- 日付・時刻 ----------
+      function isoToday() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      }
+      function fillHours(hours) {
+        var sel = $('hour');
+        sel.innerHTML = '';
+        hours.forEach(function (h) {
+          var o = document.createElement('option');
+          o.value = String(h);
+          o.textContent = String(h).padStart(2, '0') + ':00';
+          sel.appendChild(o);
+        });
+        var now = new Date().getHours();
+        var best = hours.reduce(function (a, b) { return Math.abs(b - now) < Math.abs(a - now) ? b : a; }, hours[0]);
+        sel.value = String(best);
+      }
+      async function loadMeta() {
+        try {
+          meta = await fetchJson(apiUrl('/api/meta?year=2026'));
+        } catch (e) {
+          meta = { date_start: '2026-06-01', date_end: '2026-08-31', hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17] };
+        }
+        var rd = $('routeDate');
+        rd.min = meta.date_start;
+        rd.max = meta.date_end;
+        if (!rd.value) {
+          var t = isoToday();
+          if (t < meta.date_start) t = meta.date_start;
+          if (t > meta.date_end) t = meta.date_end;
+          rd.value = t;
+        }
+        if (!$('hour').options.length) fillHours(meta.hours && meta.hours.length ? meta.hours : [14]);
+      }
+      $('routeDate').onchange = invalidateRoutes;
+      $('hour').onchange = invalidateRoutes;
+
+      // ---------- システム切り替え（旧 / 最新） ----------
+      function refreshSysUi() {
+        Array.prototype.forEach.call($('sysSeg').querySelectorAll('button'), function (b) {
+          b.classList.toggle('on', b.getAttribute('data-sys') === sys);
+        });
+        var fab = $('fabSys');
+        fab.className = 'fab ' + (sys === 'new' ? 'sys-new' : 'sys-old');
+        fab.innerHTML = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>' +
+          '<span class="fab-l">' + (sys === 'new' ? T('sysNewShort') : T('sysOldShort')) + '</span>';
+        $('etaSys').textContent = sysLabel(sys) + '（' + (sys === 'new' ? T('sysNewN') : T('sysOldN')) + '）';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', sys === 'new' ? '#188038' : '#1a73e8');
+      }
+      Array.prototype.forEach.call($('sysSeg').querySelectorAll('button'), function (b) {
+        b.onclick = function () { switchSystem(b.getAttribute('data-sys')); };
+      });
+      $('fabSys').onclick = function () { switchSystem(sys === 'new' ? 'old' : 'new'); };
+
+      async function switchSystem(next) {
+        if (next === sys) return;
+        var prevSys = sys;
+        sys = next;
+        refreshSysUi();
+        if (!orig || !dest) return;
+        if (!routes[sys] && (routes[prevSys] || nav)) {
+          try {
+            busy(true, T('computingOther', { sys: sysLabel(sys) }));
+            var curR = nav ? nav.route : routes[prevSys];
+            routes[sys] = buildRoute(await requestRoute(sys, fixedVisitCsId, !!(curR && curR.csId == null)), sys);
+          } catch (e) {
+            busy(false);
+            toast(T('errPrefix') + e.message, 5000);
+            sys = prevSys;
+            refreshSysUi();
+            return;
+          }
+          busy(false);
+        }
+        if (!routes[sys]) return;
+        if (nav) {
+          var here = nav.pos;
+          nav.route = routes[sys];
+          var pr = projectOnRoute(nav.route, here[0], here[1]);
+          nav.along = pr.along;
+          nav.csPassed = nav.route.csAlong != null && nav.along > nav.route.csAlong + 1;
+          nav.spoken = {};
+          drawRoute(nav.route, false);
+          updateNav(true);
+          toast(T('sysSwitched', { sys: sysLabel(sys) }), 2500);
+        } else {
+          drawRoute(routes[sys], true);
+          showSummary(routes[sys]);
+        }
+      }
+
+      // ---------- ルート取得・整形 ----------
+      function collectFactors() {
+        var shadow = $('f_shadow').checked;
+        return Object.assign({}, baseFactors, {
+          use_distance: $('f_dist').checked,
+          use_time: $('f_time').checked,
+          use_slope: $('f_slope').checked,
+          use_shadow: shadow,
+          prefer_shade: shadow
+        });
+      }
+      function factorActive(f) {
+        return f.use_distance || f.use_time || f.use_slope || f.use_shadow;
+      }
+      function syncFactorChecks() {
+        $('f_dist').checked = baseFactors.use_distance !== false;
+        $('f_time').checked = baseFactors.use_time !== false;
+        $('f_slope').checked = baseFactors.use_slope !== false;
+        $('f_shadow').checked = baseFactors.use_shadow !== false;
+      }
+      ['f_dist', 'f_time', 'f_slope', 'f_shadow'].forEach(function (id) {
+        $(id).onchange = function () {
+          invalidateRoutes();
+          if (orig && dest) setStatus(T('ready'));
+        };
+      });
+      function buildReq(sysKey, visitCsId, noCs) {
+        var withCs = useCs() && !noCs;
+        return {
+          orig_lat: orig.lat, orig_lon: orig.lon,
+          dest_lat: dest.lat, dest_lon: dest.lon,
+          route_date: $('routeDate').value,
+          hour: parseInt($('hour').value, 10),
+          year: 2026,
+          visit_cs_id: withCs && visitCsId != null ? visitCsId : null,
+          compare_accuracy: false,
+          lang: isEn ? 'en' : 'ja',
+          factors: Object.assign({}, collectFactors(), { include_tree_shade: sysKey === 'new', use_cooling_shelter: withCs })
+        };
+      }
+      async function requestRoute(sysKey, visitCsId, noCs) {
+        return fetchJson(apiUrl('/api/route_latlon'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildReq(sysKey, visitCsId, noCs))
+        });
+      }
+
+      function buildRoute(res, sysKey) {
+        var st = res.stats || {};
+        var ll = (res.coordinates_latlon || []).map(function (p) { return [p[0], p[1]]; });
+        if (ll.length < 2) throw new Error('route has no geometry');
+        var lat0 = ll[0][0], lon0 = ll[0][1];
+        var kx = Math.cos(lat0 * Math.PI / 180) * 111320, ky = 110540;
+        var xy = ll.map(function (p) { return [(p[1] - lon0) * kx, (p[0] - lat0) * ky]; });
+        var cum = [0];
+        for (var i = 1; i < xy.length; i++) {
+          cum.push(cum[i - 1] + Math.hypot(xy[i][0] - xy[i - 1][0], xy[i][1] - xy[i - 1][1]));
+        }
+        var rawSteps = (isEn ? st.nav_steps_en : st.nav_steps) || st.nav_steps || [];
+        if (!rawSteps.length) {
+          rawSteps = [
+            { type: 'depart', modifier: 'straight', road: '', instruction: isEn ? 'Head out' : '出発', start_index: 0, distance_m: cum[cum.length - 1], shade_frac: st.mean_shadow_fraction_on_path || 0 },
+            { type: 'arrive', modifier: 'straight', road: '', instruction: isEn ? 'Arrive' : '目的地に到着', start_index: ll.length - 1, distance_m: 0, shade_frac: 0 }
+          ];
+        }
+        var steps = rawSteps.map(function (s) {
+          var idx = Math.max(0, Math.min(ll.length - 1, s.start_index | 0));
+          return Object.assign({}, s, { along: cum[idx], idx: idx });
+        });
+        var wp = null;
+        for (var k = 0; k < steps.length; k++) { if (steps[k].type === 'waypoint') { wp = steps[k]; break; } }
+        var cv = st.cooling_shelter_visit || {};
+        var fac = st.factors || {};
+        return {
+          sys: sysKey, res: res, st: st, ll: ll, xy: xy, cum: cum, total: cum[cum.length - 1],
+          kx: kx, ky: ky, lat0: lat0, lon0: lon0,
+          segShade: st.edge_shade_fractions || [],
+          steps: steps,
+          csAlong: wp ? wp.along : null,
+          csId: cv.cs_id != null ? cv.cs_id : null,
+          csName: cv.cs_name || '',
+          csWpIdx: wp ? wp.idx : null,
+          walk: fac.walk_speed_m_s || baseFactors.walk_speed_m_s || 1.2,
+          dwell: cv.enabled === false || cv.cs_id == null ? 0
+            : (fac.cs_dwell_time_s != null ? fac.cs_dwell_time_s : (baseFactors.cs_dwell_time_s || 600)),
+          meanShade: st.mean_shadow_fraction_on_path || 0
+        };
+      }
+
+      function projectOnRoute(r, lat, lon) {
+        var px = (lon - r.lon0) * r.kx, py = (lat - r.lat0) * r.ky;
+        var best = { dist: Infinity, along: 0, seg: 0 };
+        for (var i = 0; i < r.xy.length - 1; i++) {
+          var ax = r.xy[i][0], ay = r.xy[i][1], bx = r.xy[i + 1][0], by = r.xy[i + 1][1];
+          var dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+          var t = L2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0;
+          t = Math.max(0, Math.min(1, t));
+          var qx = ax + t * dx, qy = ay + t * dy;
+          var d = Math.hypot(px - qx, py - qy);
+          if (d < best.dist) best = { dist: d, along: r.cum[i] + t * Math.sqrt(L2), seg: i };
+        }
+        return best;
+      }
+      function segAt(r, along) {
+        var lo = 0, hi = r.cum.length - 2;
+        if (along <= 0) return 0;
+        if (along >= r.total) return Math.max(0, r.cum.length - 2);
+        while (lo < hi) {
+          var mid = (lo + hi + 1) >> 1;
+          if (r.cum[mid] <= along) lo = mid; else hi = mid - 1;
+        }
+        return lo;
+      }
+      function pointAt(r, along) {
+        var i = segAt(r, along);
+        var segLen = r.cum[i + 1] - r.cum[i];
+        var t = segLen > 0 ? (along - r.cum[i]) / segLen : 0;
+        t = Math.max(0, Math.min(1, t));
+        var a = r.ll[i], b = r.ll[i + 1];
+        var dx = r.xy[i + 1][0] - r.xy[i][0], dy = r.xy[i + 1][1] - r.xy[i][1];
+        var brg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+        return { latlng: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], bearing: brg, seg: i };
+      }
+      function shadeAhead(r, along) {
+        var i0 = segAt(r, along), tot = 0, sh = 0;
+        for (var i = i0; i < r.cum.length - 1; i++) {
+          var s0 = Math.max(r.cum[i], along), s1 = r.cum[i + 1];
+          var len = Math.max(0, s1 - s0);
+          tot += len;
+          sh += len * (r.segShade[i] || 0);
+        }
+        return tot > 0 ? sh / tot : 0;
+      }
+
+      // ---------- 描画（見た目だけ間引く。案内の座標 r.ll は変えない） ----------
+      function simplifyLatLngs(ll, tolM) {
+        if (!ll || ll.length < 3) return (ll || []).slice();
+        var lat0 = ll[0][0] * Math.PI / 180;
+        var mLat = 111320;
+        var mLon = 111320 * Math.cos(lat0);
+        var xy = ll.map(function (p) {
+          return [(p[1] - ll[0][1]) * mLon, (p[0] - ll[0][0]) * mLat];
+        });
+        function perp(p, a, b) {
+          var dx = b[0] - a[0], dy = b[1] - a[1];
+          var len = Math.hypot(dx, dy);
+          if (len < 1e-9) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+          return Math.abs((p[0] - a[0]) * dy - (p[1] - a[1]) * dx) / len;
+        }
+        var keep = { 0: true };
+        keep[ll.length - 1] = true;
+        function rec(i, j) {
+          var maxD = 0, idx = -1;
+          for (var k = i + 1; k < j; k++) {
+            var d = perp(xy[k], xy[i], xy[j]);
+            if (d > maxD) { maxD = d; idx = k; }
+          }
+          if (idx >= 0 && maxD > tolM) {
+            keep[idx] = true;
+            rec(i, idx);
+            rec(idx, j);
+          }
+        }
+        rec(0, ll.length - 1);
+        var out = [];
+        for (var i = 0; i < ll.length; i++) if (keep[i]) out.push(ll[i]);
+        return out;
+      }
+      function dropSpikes(ll) {
+        var pts = (ll || []).slice();
+        var guard = 0;
+        while (pts.length >= 3 && guard++ < 80) {
+          var lat0 = pts[0][0] * Math.PI / 180;
+          var mLat = 111320;
+          var mLon = 111320 * Math.cos(lat0);
+          var xy = pts.map(function (p) {
+            return [(p[1] - pts[0][1]) * mLon, (p[0] - pts[0][0]) * mLat];
+          });
+          var removed = false;
+          for (var i = 1; i < pts.length - 1; i++) {
+            var ax = xy[i][0] - xy[i - 1][0], ay = xy[i][1] - xy[i - 1][1];
+            var bx = xy[i + 1][0] - xy[i][0], by = xy[i + 1][1] - xy[i][1];
+            var la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+            if (la < 1.5) { pts.splice(i, 1); removed = true; break; }
+            if (lb < 0.4) continue;
+            var dot = (ax * bx + ay * by) / (la * lb);
+            var back = Math.hypot(xy[i + 1][0] - xy[i - 1][0], xy[i + 1][1] - xy[i - 1][1]);
+            var spur = Math.min(la, lb) < 80 && (dot < -0.75 || (back + 12 < la + lb && back < Math.max(la, lb) * 0.85));
+            if (spur) {
+              pts.splice(i, 1);
+              removed = true;
+              break;
+            }
+          }
+          if (!removed) break;
+        }
+        return pts;
+      }
+      function distM(a, b) {
+        var lat0 = ((a[0] + b[0]) / 2) * Math.PI / 180;
+        var dx = (b[1] - a[1]) * 111320 * Math.cos(lat0);
+        var dy = (b[0] - a[0]) * 111320;
+        return Math.hypot(dx, dy);
+      }
+      function dropLoops(ll) {
+        var pts = (ll || []).slice();
+        var guard = 0;
+        while (pts.length >= 4 && guard++ < 40) {
+          var cum = [0];
+          for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + distM(pts[i - 1], pts[i]));
+          var removed = false;
+          for (var i = 0; i < pts.length - 2 && !removed; i++) {
+            for (var j = i + 2; j < pts.length; j++) {
+              var along = cum[j] - cum[i];
+              if (along > 220) break;
+              var straight = distM(pts[i], pts[j]);
+              if (straight < 28 && along > straight + 30) {
+                pts.splice(i + 1, j - i - 1);
+                removed = true;
+                break;
+              }
+            }
+          }
+          if (!removed) break;
+        }
+        return pts;
+      }
+      function displayLatLngs(ll) {
+        return dropLoops(dropSpikes(simplifyLatLngs(dropLoops(dropSpikes(ll)), 8)));
+      }
+      function shadePieces(r) {
+        var simple = displayLatLngs(r.ll);
+        if (!(shadeColoring && r.segShade && r.segShade.length && r.cum)) {
+          return [{ ll: simple, shade: false }];
+        }
+        function nearest(pt) {
+          var best = 0, bestD = 1e18;
+          for (var i = 0; i < r.ll.length; i++) {
+            var dlat = r.ll[i][0] - pt[0], dlon = r.ll[i][1] - pt[1];
+            var d = dlat * dlat + dlon * dlon;
+            if (d < bestD) { bestD = d; best = i; }
+          }
+          return best;
+        }
+        var idx = [];
+        var last = 0;
+        simple.forEach(function (pt) {
+          var j = nearest(pt);
+          if (j < last) j = last;
+          idx.push(j);
+          last = j;
+        });
+        function shadedSpan(a, b) {
+          if (b <= a) return (r.segShade[Math.min(a, r.segShade.length - 1)] || 0) >= 0.5;
+          var sh = 0, len = 0;
+          for (var i = a; i < b && i < r.segShade.length; i++) {
+            var seg = Math.max(0, (r.cum[i + 1] || 0) - (r.cum[i] || 0));
+            sh += seg * (r.segShade[i] || 0);
+            len += seg;
+          }
+          return len > 0 ? (sh / len) >= 0.5 : false;
+        }
+        var colored = [];
+        for (var s = 1; s < simple.length; s++) {
+          var shade = shadedSpan(idx[s - 1], idx[s]);
+          var prev = colored[colored.length - 1];
+          if (prev && prev.shade === shade) prev.ll.push(simple[s]);
+          else colored.push({ ll: [simple[s - 1], simple[s]], shade: shade });
+        }
+        return colored.length ? colored : [{ ll: simple, shade: false }];
+      }
+      function drawRoute(r, fit) {
+        routeGroup.clearLayers();
+        traveledLine = null;
+        var plainColor = r.sys === 'new' ? '#188038' : '#1a73e8';
+        var useShade = !!(shadeColoring && r.segShade && r.segShade.length);
+        var pieces = shadePieces(r);
+        var casing = [];
+        pieces.forEach(function (p) {
+          if (casing.length) casing.pop();
+          casing = casing.concat(p.ll);
+        });
+        var stroke = { weight: 7, opacity: 1, lineCap: 'round', lineJoin: 'round', smoothFactor: 0, interactive: false };
+        L.polyline(casing, { color: '#ffffff', weight: 12, opacity: 0.95, lineCap: 'round', lineJoin: 'round', smoothFactor: 0, interactive: false }).addTo(routeGroup);
+        pieces.forEach(function (p) {
+          L.polyline(p.ll, Object.assign({ color: useShade ? (p.shade ? '#1a73e8' : '#f29900') : plainColor }, stroke)).addTo(routeGroup);
+        });
+        $('lgShadeRow').classList.toggle('hidden', !useShade);
+        $('lgSunRow').classList.toggle('hidden', !useShade);
+        $('legend').classList.remove('hidden');
+        traveledLine = L.polyline([], { color: '#9aa0a6', weight: 7, opacity: 1, lineCap: 'round', lineJoin: 'round', smoothFactor: 0, interactive: false }).addTo(routeGroup);
+
+        if (r.csId != null) {
+          var f = csFeatureById(r.csId);
+          var pos = f ? [f.geometry.coordinates[1], f.geometry.coordinates[0]] : (r.csWpIdx != null ? r.ll[r.csWpIdx] : null);
+          if (pos) {
+            var visit = L.marker(pos, {
+              icon: L.divIcon({
+                className: '', iconSize: [36, 42], iconAnchor: [18, 40],
+                html: '<div class="cs-pin">' + CS_ICON_SVG + '</div>'
+              }),
+              zIndexOffset: 900,
+              bubblingMouseEvents: false
+            }).addTo(routeGroup);
+            if (f) {
+              var vp = f.properties || {};
+              visit.bindPopup(csPopupHtml(vp), {
+                maxWidth: 280, offset: [0, -32], autoPan: true,
+                autoPanPaddingTopLeft: L.point(24, 80), autoPanPaddingBottomRight: L.point(24, 140)
+              });
+              visit.on('click', function (ev) {
+                L.DomEvent.stopPropagation(ev);
+                openCsPopup(visit, vp);
+              });
+            } else {
+              visit.bindTooltip(r.csName || T('lgCs'), { direction: 'top', offset: [0, -36] });
+            }
+          }
+        }
+        if (fit) map.fitBounds(L.latLngBounds(r.ll), fitPadding());
+      }
+      function fitPadding() {
+        if (window.innerWidth >= 900) return { paddingTopLeft: [460, 40], paddingBottomRight: [80, 40], maxZoom: 17 };
+        var su = $('setup').getBoundingClientRect();
+        var sh = $('sheet').getBoundingClientRect();
+        var top = su.height ? su.bottom + 16 : 80;
+        var bottom = sh.height ? window.innerHeight - sh.top + 24 : 80;
+        return { paddingTopLeft: [30, Math.round(top)], paddingBottomRight: [30, Math.round(bottom)], maxZoom: 17 };
+      }
+
+      function showSummary(r) {
+        var walkS = r.total / r.walk;
+        $('sumBox').classList.remove('hidden');
+        $('sumTime').innerHTML = fmtDur(walkS + r.dwell) + '<span>(' + fmtDist(r.total) + ')</span>';
+        var lines = [];
+        lines.push(T('shadeRoute') + ' ' + pct(r.meanShade) + ' · ' + sysLabel(r.sys));
+        if (r.csName && r.dwell > 0) {
+          lines.push(T('stopCs') + ': ' + r.csName);
+          lines.push(T('walk') + ' ' + fmtDur(walkS) + ' + ' + T('dwell') + ' ' + fmtDur(r.dwell));
+        } else {
+          lines.push(T('noCs'));
+        }
+        $('sumMeta').innerHTML = lines.map(function (s) { return escapeHtml(s); }).join('<br>');
+        $('btnSearch').classList.add('hidden');
+        $('btnStart').classList.remove('hidden');
+        $('btnStepsSetup').classList.remove('hidden');
+        document.body.classList.add('has-summary');
+        setStatus(T('readyRoute'), 'ok');
+        requestAnimationFrame(fitSetup);
+      }
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+
+      // ---------- 検索 ----------
+      $('btnSearch').onclick = async function () {
+        if (!orig || !dest) { setStatus(T('needOD'), 'err'); return; }
+        if (!factorActive(collectFactors())) { setStatus(T('factorNeed'), 'err'); return; }
+        busy(true, T('computing'));
+        try {
+          var res = await requestRoute(sys, null);
+          var r = buildRoute(res, sys);
+          routes = { old: null, new: null };
+          routes[sys] = r;
+          fixedVisitCsId = r.csId;
+          drawRoute(r, true);
+          showSummary(r);
+        } catch (e) {
+          setStatus(T('errPrefix') + e.message, 'err');
+        } finally {
+          busy(false);
+        }
+      };
+
+      // ---------- ステップ一覧 ----------
+      function openSteps() {
+        var r = nav ? nav.route : routes[sys];
+        if (!r) return;
+        $('spSub').textContent = sysLabel(r.sys) + ' · ' + fmtDist(r.total) + ' · ' + T('shadeRoute') + ' ' + pct(r.meanShade);
+        var list = $('stepsList');
+        list.innerHTML = '';
+        var curIdx = nav ? currentStepIndex(nav.route, nav.along) : -1;
+        r.steps.forEach(function (s, i) {
+          var item = document.createElement('div');
+          item.className = 'st-item' + (nav && i < curIdx ? ' past' : '') + (nav && i === curIdx ? ' cur' : '');
+          var metaHtml = '';
+          if (s.type !== 'arrive' && s.type !== 'waypoint') {
+            metaHtml = '<span>' + fmtDist(s.distance_m) + '</span>' +
+              '<span class="shbar" title="' + T('shade') + ' ' + pct(s.shade_frac) + '"><i style="width:' + Math.round((s.shade_frac || 0) * 100) + '%"></i></span>' +
+              '<span>' + T('shade') + ' ' + pct(s.shade_frac) + '</span>';
+          } else if (s.type === 'waypoint') {
+            metaHtml = '<span>' + T('dwell') + ' ' + fmtDur(r.dwell) + '</span>';
+          }
+          item.innerHTML = '<div class="st-ico" style="color:' + (s.type === 'waypoint' ? '#01579b' : '#3c4043') + '">' + arrowSvg(s) + '</div>' +
+            '<div class="st-body"><div class="st-ins">' + escapeHtml(s.instruction || '') + '</div>' +
+            '<div class="st-meta">' + metaHtml + '</div></div>';
+          item.onclick = function () {
+            closeSteps();
+            if (nav) {
+              nav.follow = false;
+              if (view3d) setView3d(false);
+              $('recenter').classList.remove('hidden');
+            }
+            map.setView(r.ll[s.idx], 18);
+          };
+          list.appendChild(item);
+        });
+        $('stepsPanel').classList.remove('hidden');
+      }
+      function closeSteps() { $('stepsPanel').classList.add('hidden'); }
+      $('btnStepsSetup').onclick = openSteps;
+      $('btnStepsNav').onclick = openSteps;
+      $('btnStepsClose').onclick = closeSteps;
+
+      // ---------- ナビ ----------
+      function currentStepIndex(r, along) {
+        var idx = 0;
+        for (var i = 0; i < r.steps.length; i++) {
+          if (r.steps[i].type === 'arrive') break;
+          if (r.steps[i].along <= along + 0.5) idx = i;
+        }
+        return idx;
+      }
+      function nextManeuvers(r, along, csPassed) {
+        var out = [];
+        for (var i = 1; i < r.steps.length; i++) {
+          var s = r.steps[i];
+          var ahead = s.along > along + 0.5 || (s.type === 'waypoint' && !csPassed) || s.type === 'arrive';
+          if (s.type === 'waypoint' && csPassed) ahead = false;
+          if (ahead) { out.push({ step: s, i: i }); }
+          if (out.length >= 2) break;
+        }
+        return out;
+      }
+
+      function startNav() {
+        var r = routes[sys];
+        if (!r) return;
+        closeSteps();
+        var h0 = pointAt(r, 0).bearing;
+        nav = {
+          route: r, along: 0, mode: 'sim', playing: true, simMult: 4, follow: true,
+          csPassed: false, arrived: false, spoken: {}, pos: r.ll[0], heading: h0,
+          lastFrame: null, lastUi: 0, raf: null, watchId: null, offCount: 0, offRoute: false, csPauseUntil: 0
+        };
+        viewHeading = h0;
+        document.body.classList.remove('setup');
+        document.body.classList.add('nav');
+        ['setup', 'sheetSetup'].forEach(function (id) { $(id).classList.add('hidden'); });
+        ['banner', 'fabs', 'signs', 'sheetNav'].forEach(function (id) { $(id).classList.remove('hidden'); });
+        csLayer.eachLayer(function (l) { l.setStyle({ opacity: 0.5, fillOpacity: 0.4 }); });
+        if (mOrig) mOrig.setStyle({ opacity: 0, fillOpacity: 0 });
+        drawRoute(r, false);
+        if (mMe) map.removeLayer(mMe);
+        mMe = L.marker(r.ll[0], { icon: meIcon, zIndexOffset: 1000, interactive: false }).addTo(map);
+        map.setView(r.ll[0], 18, { animate: false });
+        setView3d(viewPref3d);
+        drawMyLocation();
+        refreshNavChips();
+        updateNav(true);
+        var first = nextManeuvers(r, 0, false)[0];
+        speak(T('startSay', { i: (r.steps[0] && r.steps[0].instruction) || '' }) + (first ? '。' + (first.step.instruction || '') : ''));
+        requestWakeLock();
+        nav.raf = requestAnimationFrame(tick);
+        tryAutoGps();
+        var seen = null;
+        try { seen = localStorage.getItem('kah_navi_help_seen'); } catch (e) { seen = null; }
+        if (!seen) openHelp();
+      }
+
+      function endNav() {
+        if (!nav) return;
+        if (nav.raf) cancelAnimationFrame(nav.raf);
+        if (nav.watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(nav.watchId);
+        nav = null;
+        setView3d(false);
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        releaseWakeLock();
+        if (mMe) { map.removeLayer(mMe); mMe = null; }
+        drawMyLocation();
+        document.body.classList.remove('nav');
+        document.body.classList.add('setup');
+        ['banner', 'fabs', 'signs', 'sheetNav', 'recenter'].forEach(function (id) { $(id).classList.add('hidden'); });
+        ['setup', 'sheetSetup'].forEach(function (id) { $(id).classList.remove('hidden'); });
+        csLayer.eachLayer(function (l) { l.setStyle({ opacity: 1, fillOpacity: 0.85 }); });
+        if (mOrig) mOrig.setStyle({ opacity: 1, fillOpacity: 1 });
+        if (routes[sys]) { drawRoute(routes[sys], true); showSummary(routes[sys]); }
+      }
+
+      function tick(ts) {
+        if (!nav) return;
+        var dt = nav.lastFrame == null ? 0 : Math.min(0.25, (ts - nav.lastFrame) / 1000);
+        nav.lastFrame = ts;
+        if (nav.mode === 'sim' && nav.playing && !nav.arrived && Date.now() >= nav.csPauseUntil) {
+          nav.along = Math.min(nav.route.total, nav.along + nav.route.walk * nav.simMult * dt);
+          var p = pointAt(nav.route, nav.along);
+          nav.pos = p.latlng;
+          nav.heading = p.bearing;
+        }
+        var diff = ((nav.heading - viewHeading + 540) % 360) - 180;
+        viewHeading = (viewHeading + diff * Math.min(1, dt * 3.5) + 360) % 360;
+        apply3dTransform();
+        updateNav(false);
+        nav.raf = requestAnimationFrame(tick);
+      }
+
+      // 画面上で「自分」を置く位置（バナーとシートの間）
+      function anchorPoint(is3d) {
+        var W = window.innerWidth, H = window.innerHeight;
+        var bnRect = $('banner').getBoundingClientRect();
+        var shRect = $('sheet').getBoundingClientRect();
+        if (W >= 900) return { x: shRect.right + (W - shRect.right) / 2, y: H * (is3d ? 0.74 : 0.62) };
+        var top = bnRect.bottom, bottom = shRect.top;
+        return { x: W / 2, y: bottom > top + 40 ? top + (bottom - top) * (is3d ? 0.8 : 0.7) : H * 0.6 };
+      }
+
+      // ---------- 歩行者視点（3D・進行方向が上） ----------
+      // 地図要素を自分の位置を中心とする正方形に広げ、CSS で回転＋手前に傾ける。
+      // 正方形の角が視点より手前に出ないよう（Safari で描画が消える）半径を perspective から決める。
+      function layoutMap() {
+        var el = $('map'), wrap = $('mapWrap');
+        if (!view3d) {
+          el.style.width = el.style.height = el.style.left = el.style.top = el.style.transform = '';
+          wrap.style.perspective = wrap.style.perspectiveOrigin = '';
+          map.invalidateSize({ pan: false });
+          return;
+        }
+        var H = window.innerHeight;
+        var a = anchorPoint(true);
+        var p = Math.round(Math.max(H, 480) * 1.4);
+        var s = Math.sin(TILT_DEG * Math.PI / 180), c = Math.cos(TILT_DEG * Math.PI / 180);
+        var r = 0.62 * p / s;
+        var D = Math.ceil(2 * r);
+        el.style.width = D + 'px';
+        el.style.height = D + 'px';
+        el.style.left = Math.round(a.x - D / 2) + 'px';
+        el.style.top = Math.round(a.y - D / 2) + 'px';
+        wrap.style.perspective = p + 'px';
+        wrap.style.perspectiveOrigin = Math.round(a.x) + 'px ' + Math.round(a.y) + 'px';
+        var horizon = a.y - r * c * p / (p + r * s);
+        $('fog').style.top = Math.round(horizon - 24) + 'px';
+        $('fog').style.height = Math.round(Math.max(120, H * (window.innerWidth > H ? 0.36 : 0.22))) + 'px';
+        map.invalidateSize({ pan: false });
+        apply3dTransform();
+        if (nav) map.setView(nav.pos, map.getZoom() < 17 ? 18 : map.getZoom(), { animate: false });
+      }
+      function apply3dTransform() {
+        if (!view3d) return;
+        $('map').style.transform = 'rotateX(' + TILT_DEG + 'deg) rotateZ(' + (-viewHeading).toFixed(2) + 'deg)';
+      }
+      function setView3d(on) {
+        view3d = !!on;
+        document.body.classList.toggle('v3d', view3d);
+        // 3D 変形中は Leaflet のポインタ座標計算が合わないため、地図操作を止める
+        ['dragging', 'touchZoom', 'scrollWheelZoom', 'doubleClickZoom', 'boxZoom', 'keyboard'].forEach(function (h) {
+          if (map[h]) { if (view3d) map[h].disable(); else map[h].enable(); }
+        });
+        if (nav) { viewHeading = nav.heading; nav.follow = true; $('recenter').classList.add('hidden'); }
+        layoutMap();
+        refresh3dFab();
+        if (nav) followMap();
+      }
+      function refresh3dFab() {
+        var fab = $('fab3d');
+        fab.classList.toggle('on', view3d);
+        fab.innerHTML = '<span style="font-size:15px;font-weight:800;line-height:1">' + (view3d ? '3D' : '2D') + '</span>' +
+          '<span class="fab-l">' + (view3d ? T('v3d') : T('v2d')) + '</span>';
+      }
+      $('fab3d').onclick = function () {
+        if (!nav) return;
+        viewPref3d = !view3d;
+        setView3d(viewPref3d);
+        toast(viewPref3d ? T('to3d') : T('to2d'), 3000);
+      };
+
+      // ---------- 使い方 ----------
+      function openHelp() {
+        $('helpTitle').textContent = T('helpTitle');
+        $('helpList').innerHTML = ['help1', 'help2', 'help3', 'help4', 'help5']
+          .map(function (k) { return '<li>' + T(k) + '</li>'; }).join('');
+        $('btnHelpOk').textContent = T('helpOk');
+        $('navHelp').classList.remove('hidden');
+        if (nav && nav.mode === 'sim' && nav.playing) {
+          nav.playing = false;
+          nav.resumeAfterHelp = true;
+          refreshNavChips();
+        }
+      }
+      function closeHelp() {
+        $('navHelp').classList.add('hidden');
+        if (nav && nav.resumeAfterHelp) {
+          nav.resumeAfterHelp = false;
+          nav.playing = true;
+          refreshNavChips();
+        }
+        try { localStorage.setItem('kah_navi_help_seen', '1'); } catch (e) { /* noop */ }
+      }
+      $('fabHelp').onclick = openHelp;
+      $('btnHelpOk').onclick = closeHelp;
+      $('navHelp').onclick = function (e) { if (e.target === this) closeHelp(); };
+      var resizeTimer = null;
+      window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () { layoutMap(); if (nav) followMap(); }, 120);
+      });
+
+      function followMap() {
+        if (!nav || !nav.follow) return;
+        var z = map.getZoom() < 17 ? 18 : map.getZoom();
+        if (view3d) {
+          map.setView(nav.pos, z, { animate: false });
+          return;
+        }
+        var a = anchorPoint(false);
+        var size = map.getSize();
+        var pt = map.project(nav.pos, z);
+        var shift = L.point(size.x / 2 - a.x, size.y / 2 - a.y);
+        map.setView(map.unproject(pt.add(shift), z), z, { animate: false });
+      }
+
+      function updateNav(force) {
+        if (!nav) return;
+        var r = nav.route;
+        if (mMe) {
+          mMe.setLatLng(nav.pos);
+          var el = mMe.getElement();
+          var svg = el && el.querySelector('.me');
+          if (svg) svg.style.transform = 'rotate(' + nav.heading.toFixed(1) + 'deg)' + (view3d ? ' scale(1.8)' : '');
+        }
+        followMap();
+
+        if (r.csAlong != null && !nav.csPassed && nav.along >= r.csAlong - 3) {
+          nav.csPassed = true;
+          var msg = T('csArrive', { n: r.csName || 'CS' });
+          toast(msg, 4500);
+          speak(msg);
+          if (nav.mode === 'sim') nav.csPauseUntil = Date.now() + 2500;
+        }
+        if (!nav.arrived && nav.along >= r.total - 6) {
+          nav.arrived = true;
+          speak(T('arrived'));
+        }
+
+        var now = performance.now();
+        if (!force && now - nav.lastUi < 200) return;
+        nav.lastUi = now;
+
+        var segI = segAt(r, nav.along);
+        if (traveledLine) traveledLine.setLatLngs(displayLatLngs(r.ll.slice(0, segI + 1).concat([nav.pos])));
+
+        var main = $('bnMain');
+        main.classList.remove('off', 'done');
+        if (nav.arrived) {
+          main.classList.add('done');
+          $('bnArrow').innerHTML = arrowSvg({ type: 'arrive' });
+          $('bnDist').textContent = '';
+          $('bnRoad').textContent = T('arrived');
+          $('bnSub').textContent = T('arrivedSub');
+          $('bnThen').classList.add('hidden');
+          main.classList.remove('with-then');
+        } else if (nav.offRoute) {
+          main.classList.add('off');
+          $('bnArrow').innerHTML = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>';
+          $('bnDist').textContent = '';
+          $('bnRoad').textContent = T('offRoute');
+          $('bnSub').textContent = T('reroute');
+          $('bnThen').classList.add('hidden');
+          main.classList.remove('with-then');
+        } else {
+          var nx = nextManeuvers(r, nav.along, nav.csPassed);
+          var n1 = nx[0], n2 = nx[1];
+          if (n1) {
+            var d1 = Math.max(0, n1.step.along - nav.along);
+            $('bnArrow').innerHTML = arrowSvg(n1.step);
+            $('bnDist').textContent = fmtDist(d1);
+            $('bnRoad').textContent = n1.step.type === 'waypoint' ? (r.csName || 'CS')
+              : (n1.step.type === 'arrive' ? (destLabel || T('destination')) : (n1.step.road || ''));
+            $('bnSub').textContent = n1.step.instruction || '';
+            var key = 'n' + n1.i;
+            if (d1 <= 35 && !nav.spoken[key]) {
+              nav.spoken[key] = true;
+              speak(d1 < 8 ? n1.step.instruction : T('ahead', { d: fmtDist(d1), i: n1.step.instruction }));
+            }
+          }
+          if (n2) {
+            $('bnThenArrow').innerHTML = arrowSvg(n2.step);
+            $('bnThenRoad').textContent = '';
+            $('bnThen').classList.remove('hidden');
+            main.classList.add('with-then');
+          } else {
+            $('bnThen').classList.add('hidden');
+            main.classList.remove('with-then');
+          }
+        }
+
+        var remain = Math.max(0, r.total - nav.along);
+        var remainS = remain / r.walk + (nav.csPassed || r.csAlong == null ? 0 : r.dwell);
+        $('etaTime').textContent = nav.arrived ? T('arrived') : fmtDur(remainS);
+        var eta = new Date(Date.now() + remainS * 1000);
+        $('etaSub').textContent = fmtDist(remain) + ' · ' + fmtClock(eta) + ' ' + T('arriveAt') +
+          (!nav.csPassed && r.csAlong != null ? T('inclDwell') : '');
+
+        var nowShade = r.segShade.length ? (r.segShade[segI] || 0) : null;
+        var signNow = $('signNow');
+        if (nowShade == null) {
+          signNow.className = 'sign';
+          $('signNowV').textContent = '—';
+        } else if (nowShade >= 0.5) {
+          signNow.className = 'sign shade';
+          $('signNowV').textContent = T('shade');
+        } else {
+          signNow.className = 'sign sun';
+          $('signNowV').textContent = T('sun');
+        }
+        $('signNowL').textContent = T('here');
+        $('signRestV').textContent = pct(shadeAhead(r, nav.along));
+      }
+
+      function refreshNavChips() {
+        if (!nav) return;
+        var cm = $('chipMode');
+        cm.innerHTML = (nav.mode === 'gps' ? ICON_GPS + T('gps') : ICON_SIM + T('sim'));
+        cm.classList.toggle('on', nav.mode === 'gps');
+        $('chipPlay').classList.toggle('hidden', nav.mode !== 'sim');
+        $('chipSpeed').classList.toggle('hidden', nav.mode !== 'sim');
+        $('chipPlay').innerHTML = nav.playing ? ICON_PAUSE + T('pause') : ICON_PLAY + T('play');
+        $('chipSpeed').textContent = '×' + nav.simMult;
+        $('fabVoice').innerHTML = (voiceOn ? ICON_VOICE_ON : ICON_VOICE_OFF) + '<span class="fab-l">' + (voiceOn ? T('voiceOn') : T('voiceOff')) + '</span>';
+        $('fabVoice').classList.toggle('on', voiceOn);
+      }
+
+      $('chipPlay').onclick = function () {
+        if (!nav) return;
+        nav.playing = !nav.playing;
+        if (nav.arrived && nav.playing) {
+          nav.along = 0; nav.arrived = false; nav.csPassed = false; nav.spoken = {};
+        }
+        refreshNavChips();
+      };
+      $('chipSpeed').onclick = function () {
+        if (!nav) return;
+        var opts = [1, 4, 10];
+        nav.simMult = opts[(opts.indexOf(nav.simMult) + 1) % opts.length];
+        refreshNavChips();
+      };
+      $('chipMode').onclick = function () {
+        if (!nav) return;
+        if (nav.mode === 'gps') setSimMode(); else startGps(false);
+      };
+      $('fabVoice').onclick = function () {
+        voiceOn = !voiceOn;
+        if (!voiceOn && window.speechSynthesis) window.speechSynthesis.cancel();
+        refreshNavChips();
+      };
+      $('fabShade').onclick = function () {
+        shadeColoring = !shadeColoring;
+        $('fabShade').classList.toggle('on', shadeColoring);
+        var r = nav ? nav.route : routes[sys];
+        if (r) drawRoute(r, false);
+        if (nav) updateNav(true);
+      };
+      $('fabOverview').onclick = function () {
+        if (!nav) return;
+        if (view3d) setView3d(false);
+        nav.follow = false;
+        $('recenter').classList.remove('hidden');
+        map.fitBounds(L.latLngBounds(nav.route.ll), { padding: [60, 60], maxZoom: 17 });
+      };
+      $('recenter').onclick = function () {
+        if (!nav) return;
+        nav.follow = true;
+        $('recenter').classList.add('hidden');
+        if (viewPref3d && !view3d) setView3d(true);
+        else followMap();
+      };
+      map.on('dragstart', function () {
+        if (!nav) return;
+        nav.follow = false;
+        $('recenter').classList.remove('hidden');
+      });
+
+      // ---------- GPS ----------
+      function setSimMode() {
+        if (!nav) return;
+        if (nav.watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(nav.watchId);
+        nav.watchId = null;
+        nav.mode = 'sim';
+        nav.offRoute = false;
+        nav.playing = true;
+        refreshNavChips();
+        drawMyLocation();
+        updateNav(true);
+      }
+      function tryAutoGps() {
+        if (!navigator.geolocation || !window.isSecureContext) return;
+        navigator.geolocation.getCurrentPosition(function (pos) {
+          if (!nav) return;
+          var pr = projectOnRoute(nav.route, pos.coords.latitude, pos.coords.longitude);
+          if (pr.dist <= 150) startGps(true);
+          else toast(T('farSim'), 4000);
+        }, function () { /* 許可なし → シミュレーションのまま */ }, { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 });
+      }
+      function startGps(auto) {
+        if (!nav) return;
+        if (!navigator.geolocation) { toast(T('gpsNg')); return; }
+        nav.mode = 'gps';
+        nav.playing = false;
+        refreshNavChips();
+        drawMyLocation();
+        if (nav.watchId != null) navigator.geolocation.clearWatch(nav.watchId);
+        nav.watchId = navigator.geolocation.watchPosition(onGps, function () {
+          toast(T('gpsNg'));
+          setSimMode();
+        }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 });
+        if (auto) toast(T('gpsOn'), 2500);
+      }
+      function onGps(pos) {
+        if (!nav || nav.mode !== 'gps') return;
+        var lat = pos.coords.latitude, lon = pos.coords.longitude;
+        var pr = projectOnRoute(nav.route, lat, lon);
+        nav.pos = [lat, lon];
+        if (pos.coords.heading != null && isFinite(pos.coords.heading) && (pos.coords.speed || 0) > 0.3) {
+          nav.heading = pos.coords.heading;
+        } else {
+          nav.heading = pointAt(nav.route, pr.along).bearing;
+        }
+        if (pr.dist > 40) {
+          nav.offCount += 1;
+          if (nav.offCount >= 2) nav.offRoute = true;
+        } else {
+          nav.offCount = 0;
+          nav.offRoute = false;
+          if (pr.along > nav.along - 30) nav.along = pr.along;
+        }
+        updateNav(true);
+      }
+      $('bnMain').onclick = function (e) {
+        if (!nav || !nav.offRoute) return;
+        if (e.target.closest('#bnSearch')) return;
+        reroute();
+      };
+      async function reroute() {
+        if (!nav) return;
+        var here = nav.pos;
+        var keepCs = nav.csPassed ? null : nav.route.csId;
+        var skipCs = nav.csPassed || nav.route.csId == null;
+        var savedOrig = orig;
+        orig = { lat: here[0], lon: here[1], fromHere: true };
+        busy(true, T('computing'));
+        try {
+          var r = buildRoute(await requestRoute(sys, keepCs, skipCs), sys);
+          routes = { old: null, new: null };
+          routes[sys] = r;
+          fixedVisitCsId = r.csId;
+          nav.route = r;
+          nav.along = 0;
+          nav.csPassed = false;
+          nav.spoken = {};
+          nav.offRoute = false;
+          nav.offCount = 0;
+          origLabel = T('myLoc');
+          drawRoute(r, false);
+          updateNav(true);
+        } catch (e) {
+          orig = savedOrig;
+          toast(T('errPrefix') + e.message, 5000);
+        } finally {
+          busy(false);
+        }
+      }
+
+      async function requestWakeLock() {
+        try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { wakeLock = null; }
+      }
+      function releaseWakeLock() {
+        try { if (wakeLock) wakeLock.release(); } catch (e) { /* noop */ }
+        wakeLock = null;
+      }
+
+      $('btnStart').onclick = startNav;
+      $('btnEnd').onclick = endNav;
+      $('bnSearch').onclick = function (e) { e.stopPropagation(); endNav(); };
+
+      // ---------- 画面切り替え（通常表示 ⇄ ナビ表示） ----------
+      $('btnBackMap').onclick = function () {
+        location.href = (sys === 'new' ? '/new' : '/') + (isEn ? '?lang=en' : '');
+      };
+      $('btnLang').onclick = function () {
+        var p = new URLSearchParams(location.search);
+        if (isEn) p.delete('lang'); else p.set('lang', 'en');
+        p.set('sys', sys);
+        p.delete('from');
+        var q = p.toString();
+        location.href = location.pathname + (q ? '?' + q : '');
+      };
+
+      function loadHandoff() {
+        if (params.get('from') !== 'map') return false;
+        var raw = null;
+        try { raw = sessionStorage.getItem('kah_navi_handoff'); } catch (e) { raw = null; }
+        if (!raw) return false;
+        try {
+          var h = JSON.parse(raw);
+          var q = h.req;
+          if (!q || !h.res) return false;
+          if (q.factors) baseFactors = Object.assign({}, baseFactors, q.factors);
+          syncFactorChecks();
+          $('useCs').checked = !(q.factors && q.factors.use_cooling_shelter === false);
+          refreshCsToggle();
+          if (h.sys === 'new' || h.sys === 'old') sys = h.sys;
+          if (q.route_date) $('routeDate').value = q.route_date;
+          if (q.hour != null) {
+            if (!Array.prototype.some.call($('hour').options, function (o) { return o.value === String(q.hour); })) {
+              var o = document.createElement('option');
+              o.value = String(q.hour);
+              o.textContent = String(q.hour).padStart(2, '0') + ':00';
+              $('hour').appendChild(o);
+            }
+            $('hour').value = String(q.hour);
+          }
+          setOrig(q.orig_lat, q.orig_lon, h.origLabel || null);
+          setDest(q.dest_lat, q.dest_lon, h.destLabel || null);
+          var r = buildRoute(h.res, sys);
+          routes[sys] = r;
+          fixedVisitCsId = r.csId;
+          refreshSysUi();
+          drawRoute(r, true);
+          showSummary(r);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      function loadUrlParams() {
+        var olat = parseFloat(params.get('olat')), olon = parseFloat(params.get('olon'));
+        var dlat = parseFloat(params.get('dlat')), dlon = parseFloat(params.get('dlon'));
+        if (params.get('date')) $('routeDate').value = params.get('date');
+        if (params.get('hour')) $('hour').value = params.get('hour');
+        if (params.get('cs') === '0') { $('useCs').checked = false; refreshCsToggle(); }
+        if (isFinite(olat) && isFinite(olon)) setOrig(olat, olon);
+        if (isFinite(dlat) && isFinite(dlon)) setDest(dlat, dlon);
+        return !!(orig && dest);
+      }
+
+      // ---------- 起動 ----------
+      (async function init() {
+        applyI18n();
+        refreshSysUi();
+        setStatus(T('connecting'));
+        try {
+          await fetchJson(apiUrl('/api/health'));
+        } catch (e) {
+          setStatus(T('apiOff') + ' ' + e.message, 'err');
+          return;
+        }
+        await loadMeta();
+        try { await loadCoolingShelters(); } catch (e) { /* CS なしでも検索は可能 */ }
+        applyI18n();
+        var routed = loadHandoff();
+        if (!routed && loadUrlParams()) {
+          setStatus(T('ready'));
+          $('btnSearch').click();
+          routed = true;
+        }
+        if (!routed) setStatus(T('ready'));
+      })();
+    })();
+  </script>
+</body>
+</html>
