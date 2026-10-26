@@ -45,9 +45,10 @@
     .hidden { display: none !important; }
 
     /* ===== 設定カード（検索モード） ===== */
+    #stage { position: absolute; inset: 0; overflow: hidden; }
     #setup {
       position: absolute; z-index: 1000; top: calc(var(--safe-top) + 10px); left: 10px; right: 10px;
-      max-width: 460px; max-height: calc(100vh - var(--sheet-space, 200px) - var(--safe-top));
+      max-width: 460px; max-height: calc(100% - var(--sheet-space, 200px) - var(--safe-top) - 10px);
       overflow: auto; margin: 0 auto; background: #fff;
       border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.25); padding: 10px 12px 12px;
     }
@@ -221,6 +222,13 @@
       padding: 8px 16px calc(var(--safe-bottom) + 12px);
     }
     .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 8px; }
+    #uiSwitch { display: flex; margin: 0 0 8px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    #uiSwitch button {
+      flex: 1; border: none; background: #fff; padding: 7px 4px; font-size: 13px; font-weight: 700;
+      color: var(--muted); cursor: pointer;
+    }
+    #uiSwitch button + button { border-left: 1px solid var(--line); }
+    #uiSwitch button.on { background: #e8f0fe; color: var(--blue); }
     .sheet-fab {
       position: absolute; right: 12px; top: -64px; width: 48px; height: 48px; border-radius: 50%; border: none;
       background: #fff; color: #5f6368; box-shadow: 0 1px 4px rgba(0,0,0,.35); display: flex;
@@ -341,20 +349,34 @@
       font-weight: 700; padding: 1px 5px; box-shadow: 0 1px 3px rgba(0,0,0,.3); white-space: nowrap;
     }
 
-    @media (min-width: 900px) {
-      #setup, #banner { left: 16px; right: auto; width: 420px; margin: 0; }
-      #sheet, #stepsPanel { left: 16px; right: auto; width: 420px; margin: 0; bottom: 16px; border-radius: 16px; }
-      #stepsPanel { height: 70%; }
-      #signs, #recenter { bottom: 156px; }
-      #recenter { left: 226px; }
-      #legend { bottom: 210px; }
-      body.setup #legend { display: block; bottom: 16px; left: auto; right: 60px; }
-      #fabs { top: 24px; }
-      #toast { left: 226px; }
+    body.ui-pc #setup, body.ui-pc #banner { left: 16px; right: auto; width: min(420px, calc(100% - 32px)); margin: 0; }
+    body.ui-pc #sheet, body.ui-pc #stepsPanel {
+      left: 16px; right: auto; width: min(420px, calc(100% - 32px)); margin: 0; bottom: 16px; border-radius: 16px;
+    }
+    body.ui-pc #stepsPanel { height: 70%; }
+    body.ui-pc #signs, body.ui-pc #recenter { bottom: 156px; }
+    body.ui-pc #recenter, body.ui-pc #toast { left: calc(16px + min(420px, calc(100% - 32px)) / 2); }
+    body.ui-pc #legend { bottom: 210px; }
+    body.ui-pc.setup #legend { display: block; bottom: 16px; left: auto; right: 60px; }
+    body.ui-pc #fabs { top: 24px; }
+    body.ui-phone.framed { background: #c5c9ce; }
+    body.ui-phone.framed #stage {
+      top: 16px; bottom: 16px; width: min(400px, calc(100% - 32px)); left: 50%;
+      transform: translateX(-50%); border-radius: 28px; border: 10px solid #202124;
+      box-shadow: 0 16px 48px rgba(0,0,0,.28); background: #e8eaed;
     }
   </style>
 </head>
 <body class="setup">
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search).get('ui');
+      var ui = (q === 'pc' || q === 'phone') ? q : (matchMedia('(min-width: 900px)').matches ? 'pc' : 'phone');
+      document.body.classList.add(ui === 'pc' ? 'ui-pc' : 'ui-phone');
+      if (ui === 'phone' && window.innerWidth >= 840) document.body.classList.add('framed');
+    })();
+  </script>
+  <div id="stage">
   <div id="mapWrap">
     <div id="map" role="application" aria-label="地図"></div>
     <div id="fog"></div>
@@ -494,6 +516,10 @@
     </button>
     <div class="sheet-attr"><a href="https://maps.gsi.go.jp/copyright/ja.html" target="_blank" rel="noopener">国土地理院</a></div>
     <div class="grab"></div>
+    <div id="uiSwitch" role="group" aria-label="画面の切り替え">
+      <button type="button" id="uiPc" data-ui="pc">PC画面</button>
+      <button type="button" id="uiPhone" data-ui="phone">スマホ画面</button>
+    </div>
 
     <div id="sheetSetup">
       <div class="status" id="status">サーバーに接続しています…</div>
@@ -619,6 +645,7 @@
           csKey: 'クーリングシェルター', csKeySub: '地図のこの絵の場所で涼めます',
           lgCs: 'クーリングシェルター', lgCsSub: 'この絵の場所で涼めます',
           fromHere: '現在地から', fromHereT: '現在地を起点にする', locate: '現在地を表示',
+          uiPc: 'PC画面', uiPhone: 'スマホ画面', uiSwitch: '画面の切り替え',
           locating: '現在地を取得しています…', needHttps: '現在地の取得には HTTPS 接続が必要です',
           noCs: 'CS 立ち寄りなし（直行）', v3d: '立体', v2d: '平面', autoOrig: '現在地を起点に設定しました',
           view3dT: '歩行者視点（3D）／北が上（2D）'
@@ -663,6 +690,7 @@
           csKey: 'Cooling shelter', csKeySub: 'This picture marks a place to cool down',
           lgCs: 'Cooling shelter', lgCsSub: 'Cool down at this picture',
           fromHere: 'From here', fromHereT: 'Use my location as origin', locate: 'Show my location',
+          uiPc: 'PC', uiPhone: 'Phone', uiSwitch: 'Screen layout',
           locating: 'Getting your location…', needHttps: 'Location requires an HTTPS connection',
           noCs: 'No shelter stop (direct)', v3d: 'Tilted', v2d: 'Flat', autoOrig: 'Origin set to your location',
           view3dT: 'Walking view (3D) / North up (2D)'
@@ -676,6 +704,32 @@
       }
       function sysLabel(s) { return s === 'new' ? T('sysNew') : T('sysOld'); }
       function $(id) { return document.getElementById(id); }
+      var uiMode = document.body.classList.contains('ui-pc') ? 'pc' : 'phone';
+      function syncUiChrome() {
+        var phone = uiMode === 'phone';
+        document.body.classList.toggle('ui-pc', !phone);
+        document.body.classList.toggle('ui-phone', phone);
+        document.body.classList.toggle('framed', phone && window.innerWidth >= 840);
+        if ($('uiPc')) {
+          $('uiPc').classList.toggle('on', !phone);
+          $('uiPhone').classList.toggle('on', phone);
+          $('uiPc').setAttribute('aria-pressed', !phone ? 'true' : 'false');
+          $('uiPhone').setAttribute('aria-pressed', phone ? 'true' : 'false');
+        }
+      }
+      function setUiMode(mode) {
+        uiMode = mode === 'pc' ? 'pc' : 'phone';
+        syncUiChrome();
+        var u = new URL(location.href);
+        u.searchParams.set('ui', uiMode);
+        history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString() + u.hash);
+        fitSetup();
+        requestAnimationFrame(function () {
+          if (map) layoutMap();
+          if (nav) followMap();
+          fitSetup();
+        });
+      }
 
       // ---------- アイコン ----------
       var P_STRAIGHT = 'M12 2.5 5.5 9h4.5v12.5h4V9h4.5z';
@@ -780,6 +834,10 @@
         $('lgCsPic').innerHTML = CS_ICON_SVG;
         $('t_helpBtn').textContent = T('helpBtn');
         $('fabHelp').title = T('helpBtn');
+        $('uiPc').textContent = T('uiPc');
+        $('uiPhone').textContent = T('uiPhone');
+        $('uiSwitch').setAttribute('aria-label', T('uiSwitch'));
+        syncUiChrome();
         refreshCsToggle();
         refreshLocToggle();
         refreshOdFields();
@@ -943,6 +1001,11 @@
         map.closePopup();
       }
       $('btnClearPts').onclick = clearPoints;
+      $('uiSwitch').addEventListener('click', function (e) {
+        var b = e.target.closest('button');
+        if (!b || !b.getAttribute('data-ui')) return;
+        setUiMode(b.getAttribute('data-ui'));
+      });
       window.addEventListener('resize', fitSetup);
       fitSetup();
       function setOrig(lat, lon, label, fromHere) {
@@ -1873,12 +1936,20 @@
 
       // 画面上で「自分」を置く位置（バナーとシートの間）
       function anchorPoint(is3d) {
-        var W = window.innerWidth, H = window.innerHeight;
+        var stage = $('stage').getBoundingClientRect();
         var bnRect = $('banner').getBoundingClientRect();
         var shRect = $('sheet').getBoundingClientRect();
-        if (W >= 900) return { x: shRect.right + (W - shRect.right) / 2, y: H * (is3d ? 0.74 : 0.62) };
-        var top = bnRect.bottom, bottom = shRect.top;
-        return { x: W / 2, y: bottom > top + 40 ? top + (bottom - top) * (is3d ? 0.8 : 0.7) : H * 0.6 };
+        if (document.body.classList.contains('ui-pc')) {
+          return {
+            x: (shRect.right - stage.left) + (stage.right - shRect.right) / 2,
+            y: stage.height * (is3d ? 0.74 : 0.62)
+          };
+        }
+        var top = bnRect.bottom - stage.top, bottom = shRect.top - stage.top;
+        return {
+          x: stage.width / 2,
+          y: bottom > top + 40 ? top + (bottom - top) * (is3d ? 0.8 : 0.7) : stage.height * 0.6
+        };
       }
 
       // ---------- 歩行者視点（3D・進行方向が上） ----------
@@ -1892,7 +1963,8 @@
           map.invalidateSize({ pan: false });
           return;
         }
-        var H = window.innerHeight;
+        var stageBox = $('stage').getBoundingClientRect();
+        var H = stageBox.height;
         var a = anchorPoint(true);
         var p = Math.round(Math.max(H, 480) * 1.4);
         var s = Math.sin(TILT_DEG * Math.PI / 180), c = Math.cos(TILT_DEG * Math.PI / 180);
@@ -1906,7 +1978,7 @@
         wrap.style.perspectiveOrigin = Math.round(a.x) + 'px ' + Math.round(a.y) + 'px';
         var horizon = a.y - r * c * p / (p + r * s);
         $('fog').style.top = Math.round(horizon - 24) + 'px';
-        $('fog').style.height = Math.round(Math.max(120, H * (window.innerWidth > H ? 0.36 : 0.22))) + 'px';
+        $('fog').style.height = Math.round(Math.max(120, H * (stageBox.width > H ? 0.36 : 0.22))) + 'px';
         map.invalidateSize({ pan: false });
         apply3dTransform();
         if (nav) map.setView(nav.pos, map.getZoom() < 17 ? 18 : map.getZoom(), { animate: false });
@@ -1968,7 +2040,7 @@
       var resizeTimer = null;
       window.addEventListener('resize', function () {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function () { layoutMap(); if (nav) followMap(); }, 120);
+        resizeTimer = setTimeout(function () { syncUiChrome(); fitSetup(); layoutMap(); if (nav) followMap(); }, 120);
       });
 
       function followMap() {
@@ -2333,5 +2405,6 @@
       })();
     })();
   </script>
+  </div>
 </body>
 </html>
