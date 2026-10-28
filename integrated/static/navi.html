@@ -1460,8 +1460,8 @@
           meta = { date_start: '2026-06-01', date_end: '2026-08-31', hours: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17] };
         }
         var rd = $('routeDate');
-        rd.min = meta.date_start;
-        rd.max = meta.date_end;
+        rd.min = fineObs ? '2026-06-01' : meta.date_start;
+        rd.max = fineObs ? '2026-09-30' : meta.date_end;
         if (!rd.value) {
           var pinned = '2026-08-05';
           var t = (pinned >= meta.date_start && pinned <= meta.date_end) ? pinned : isoToday();

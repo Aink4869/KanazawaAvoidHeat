@@ -1,0 +1,49 @@
+{
+  "year": 2026,
+  "model": "lod2_dem_trees_2m",
+  "date_start": "2026-06-01",
+  "date_end": "2026-09-30",
+  "hours_local": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18
+  ],
+  "n_days": 122,
+  "n_timesteps": 1586,
+  "grid_nx": 489,
+  "grid_ny": 783,
+  "cell_x_m": 1.999076665501712,
+  "cell_y_m": 1.9983861449569027,
+  "bounds_xy_m": {
+    "xmin": 506324.57658931136,
+    "xmax": 507302.1250787417,
+    "ymin": 409790.87286459055,
+    "ymax": 411355.6092160918
+  },
+  "crs": "EPSG:6670",
+  "timezone": "Asia/Tokyo",
+  "building": "LOD2 wall+roof on a 2 m DEM grid; 15 buildings without LOD2 use an LOD0 prism",
+  "trees": "nendophoto2024 ExG canopy, height 14.9 m",
+  "tree_height_m": 14.9,
+  "canopy_meta": {
+    "veg_pixel_fraction": 0.12350593335700757,
+    "veg_fixed_fraction": 0.0008145419034090909,
+    "exg_p80": 1.0,
+    "exg_p88": 5.0,
+    "canopy_thr": 0.2,
+    "sample_ok_fraction": 1.0,
+    "tree_frac_p90": 0.6124567474048447,
+    "tree_frac_max": 1.0000000000000018
+  },
+  "terrain_note": "PLATEAU DEM sampled onto the 2 m grid. Building shade IoU 0.996 versus the vertex interpolator at 2026-08-05 14:00."
+}

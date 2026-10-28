@@ -434,6 +434,7 @@ def route_shadow_aware_integrated(
             _Path(data_dir),
             hour_local,
             include_tree_shade=getattr(factors, "include_tree_shade", False),
+            when=when,
         )
     if loaded is not None:
         mask, active_grid, tree_info = loaded
@@ -488,7 +489,12 @@ def route_shadow_aware_integrated(
 
     bbox_key = (round(lon_min, 4), round(lat_min, 4), round(lon_max, 4), round(lat_max, 4))
     t_prep = time.perf_counter()
-    cache_ti = int(tree_info.get("shade_hour", ti)) if loaded is not None else ti
+    if loaded is not None and tree_info.get("shade_date"):
+        cache_ti = date.fromisoformat(str(tree_info["shade_date"])).toordinal() * 24 + int(
+            tree_info.get("shade_hour", hour_local)
+        )
+    else:
+        cache_ti = ti
     Gp = _get_prepared_graph(
         Gp,
         mask,

@@ -138,32 +138,73 @@ def load_lod2_2m_observation(
     hour_local: int,
     *,
     include_tree_shade: bool,
+    when: date | None = None,
 ):
-    """2026-08-05 の LOD2+DEM（＋樹木）2 m NPZ。無ければ None。"""
+    """2026-06-01 から 2026-09-30 の LOD2+DEM（＋樹木）2 m。日別 NPZ。無ければ 8月5日の単日ファイル。"""
     global _LOD2_2M
     data_dir = Path(data_dir)
-    path = data_dir / "summer_shadow_lod2_2m_20260805.npz"
-    meta_path = data_dir / "summer_shadow_lod2_2m_20260805_meta.json"
-    if not path.is_file() or not meta_path.is_file():
-        return None
-    if _LOD2_2M is None or _LOD2_2M.get("path") != str(path):
-        z = np.load(path)
+    folder = data_dir / "lod2_2m"
+    meta_path = folder / "meta.json"
+    grid_path = folder / "grid.npz"
+    if meta_path.is_file() and grid_path.is_file():
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        _LOD2_2M = {
-            "path": str(path),
-            "meta": meta,
-            "building": np.asarray(z["masks_building"]),
-            "tree": np.asarray(z["masks_tree"]),
-            "elev": np.asarray(z["elev_m"]) if "elev_m" in z.files else None,
-            "xmin": float(z["xmin"]),
-            "xmax": float(z["xmax"]),
-            "ymin": float(z["ymin"]),
-            "ymax": float(z["ymax"]),
-            "nx": int(z["nx"]),
-            "ny": int(z["ny"]),
-        }
-    pack = _LOD2_2M
-    hours = [int(h) for h in pack["meta"]["hours_local"]]
+        start = date.fromisoformat(meta["date_start"])
+        end = date.fromisoformat(meta["date_end"])
+        day = when or start
+        if day < start:
+            day = start
+        elif day > end:
+            day = end
+        day_path = folder / f"{day.strftime('%Y%m%d')}.npz"
+        if not day_path.is_file():
+            return None
+        if _LOD2_2M is None or _LOD2_2M.get("path") != str(day_path):
+            gz = np.load(grid_path)
+            z = np.load(day_path)
+            _LOD2_2M = {
+                "path": str(day_path),
+                "meta": meta,
+                "building": np.asarray(z["masks_building"]),
+                "tree": np.asarray(z["masks_tree"]),
+                "elev": np.asarray(gz["elev_m"]) if "elev_m" in gz.files else None,
+                "xmin": float(gz["xmin"]),
+                "xmax": float(gz["xmax"]),
+                "ymin": float(gz["ymin"]),
+                "ymax": float(gz["ymax"]),
+                "nx": int(gz["nx"]),
+                "ny": int(gz["ny"]),
+                "shade_date": day.isoformat(),
+            }
+        pack = _LOD2_2M
+        hours = [int(h) for h in pack["meta"]["hours_local"]]
+        shade_date = pack["shade_date"]
+        source = "lod2_2m"
+    else:
+        path = data_dir / "summer_shadow_lod2_2m_20260805.npz"
+        old_meta = data_dir / "summer_shadow_lod2_2m_20260805_meta.json"
+        if not path.is_file() or not old_meta.is_file():
+            return None
+        if _LOD2_2M is None or _LOD2_2M.get("path") != str(path):
+            z = np.load(path)
+            meta = json.loads(old_meta.read_text(encoding="utf-8"))
+            _LOD2_2M = {
+                "path": str(path),
+                "meta": meta,
+                "building": np.asarray(z["masks_building"]),
+                "tree": np.asarray(z["masks_tree"]),
+                "elev": np.asarray(z["elev_m"]) if "elev_m" in z.files else None,
+                "xmin": float(z["xmin"]),
+                "xmax": float(z["xmax"]),
+                "ymin": float(z["ymin"]),
+                "ymax": float(z["ymax"]),
+                "nx": int(z["nx"]),
+                "ny": int(z["ny"]),
+                "shade_date": str(meta.get("date_start", "2026-08-05")),
+            }
+        pack = _LOD2_2M
+        hours = [int(h) for h in pack["meta"]["hours_local"]]
+        shade_date = pack["shade_date"]
+        source = "summer_shadow_lod2_2m_20260805"
     if hour_local not in hours:
         hour_local = min(hours, key=lambda h: abs(h - hour_local))
     hi = hours.index(hour_local)
@@ -191,13 +232,13 @@ def load_lod2_2m_observation(
     )
     info = {
         "tree_shade_applied": bool(include_tree_shade),
-        "source": "summer_shadow_lod2_2m_20260805",
+        "source": source,
         "shadow_model": model,
         "observation_cell_m": 2.0,
         "building_shade_native_m": 2.0,
         "tree_shade_native_m": 2.0 if include_tree_shade else None,
         "building_model": pack["meta"].get("building"),
-        "shade_date": pack["meta"].get("date_start"),
+        "shade_date": shade_date,
         "shade_hour": int(hour_local),
         "grid_ny": pack["ny"],
         "grid_nx": pack["nx"],
