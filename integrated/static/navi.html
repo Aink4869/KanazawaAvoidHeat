@@ -250,10 +250,7 @@
     .round svg { width: 24px; height: 24px; }
     .round.danger { background: var(--red); border: none; color: #fff; }
     .eta { flex: 1; text-align: center; min-width: 0; }
-    .eta-pair { display: flex; justify-content: center; align-items: flex-end; gap: 16px; }
-    .eta-col { min-width: 0; }
     .eta-kicker { font-size: 12px; font-weight: 700; color: var(--blue); }
-    .eta-kicker.time { color: var(--green); }
     .eta-time { font-size: 24px; font-weight: 700; color: var(--blue); line-height: 1.15; }
     .eta-time.time { color: var(--green); }
     .eta-sub { font-size: 14px; color: var(--text); font-weight: 500; }
@@ -266,14 +263,11 @@
     .chip.on { background: #e8f0fe; border-color: #aecbfa; color: var(--blue); }
     .chip svg { width: 16px; height: 16px; }
 
-    .sum-pair { display: flex; align-items: flex-end; gap: 18px; margin: 2px 0 8px; }
-    .sum-shade, .sum-time { flex: 1; min-width: 0; margin: 0; }
-    .sum-kicker { font-size: 13px; font-weight: 700; line-height: 1.2; }
-    .sum-shade .sum-kicker { color: var(--blue); }
-    .sum-time .sum-kicker { color: var(--green); }
+    .sum-shade { margin: 0; }
+    .sum-kicker { font-size: 13px; font-weight: 700; color: var(--blue); line-height: 1.2; }
     .sum-pct { font-size: 24px; font-weight: 700; color: var(--blue); line-height: 1.15; }
-    .sum-pct.time { color: var(--green); }
-    .sum-sys { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .sum-time { font-size: 24px; font-weight: 700; color: var(--green); line-height: 1.15; margin: 0 0 4px; }
+    .sum-time span { font-size: 16px; color: var(--muted); font-weight: 400; margin-left: 6px; }
     .sum-meta { font-size: 13px; color: var(--muted); margin: 2px 0 10px; line-height: 1.5; }
     .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
     #btnClearPts { flex: 1 0 100%; }
@@ -581,10 +575,8 @@
     <div id="sheetSetup">
       <div class="status" id="status">サーバーに接続しています…</div>
       <div id="sumBox" class="hidden">
-        <div class="sum-pair">
-          <div class="sum-shade" id="sumShade"></div>
-          <div class="sum-time" id="sumTime"></div>
-        </div>
+        <div class="sum-shade" id="sumShade"></div>
+        <div class="sum-time" id="sumTime"></div>
         <div class="sum-meta" id="sumMeta"></div>
       </div>
       <div class="btn-row">
@@ -610,16 +602,9 @@
           <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
         <div class="eta">
-          <div class="eta-pair">
-            <div class="eta-col">
-              <div class="eta-kicker" id="t_etaShade">日陰率</div>
-              <div class="eta-time" id="etaShade">—</div>
-            </div>
-            <div class="eta-col">
-              <div class="eta-kicker time" id="t_etaTime">所要</div>
-              <div class="eta-time time" id="etaTime">—</div>
-            </div>
-          </div>
+          <div class="eta-kicker" id="t_etaShade">日陰率</div>
+          <div class="eta-time" id="etaShade">—</div>
+          <div class="eta-time time" id="etaTime">—</div>
           <div class="eta-sys" id="etaSub">—</div>
           <div class="eta-sys" id="etaSys"></div>
         </div>
@@ -1850,13 +1835,9 @@
         $('sumBox').classList.remove('hidden');
         $('sumShade').innerHTML =
           '<div class="sum-kicker">' + escapeHtml(T('shadeRoute')) + '</div>' +
-          '<div class="sum-pct">' + escapeHtml(pct(r.meanShade)) + '</div>' +
-          '<div class="sum-sys">' + escapeHtml(sysLabel(r.sys)) + '</div>';
-        $('sumTime').innerHTML =
-          '<div class="sum-kicker">' + escapeHtml(T('durLabel')) + '</div>' +
-          '<div class="sum-pct time">' + escapeHtml(fmtDur(walkS + r.dwell)) + '</div>' +
-          '<div class="sum-sys">' + escapeHtml(fmtDist(r.total)) + '</div>';
-        var lines = [];
+          '<div class="sum-pct">' + escapeHtml(pct(r.meanShade)) + '</div>';
+        $('sumTime').innerHTML = fmtDur(walkS + r.dwell) + '<span>(' + fmtDist(r.total) + ')</span>';
+        var lines = [sysLabel(r.sys)];
         if (r.csName && r.dwell > 0) {
           lines.push(T('stopCs') + ': ' + r.csName);
           lines.push(T('walk') + ' ' + fmtDur(walkS) + ' + ' + T('dwell') + ' ' + fmtDur(r.dwell));
