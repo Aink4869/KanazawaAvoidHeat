@@ -130,6 +130,83 @@ def load_shadow_grid(data_dir: Path, year: int = 2026, model: str | None = None)
     )
 
 
+_LOD2_2M: dict | None = None
+
+
+def load_lod2_2m_observation(
+    data_dir: Path,
+    hour_local: int,
+    *,
+    include_tree_shade: bool,
+):
+    """2026-08-05 の LOD2+DEM（＋樹木）2 m NPZ。無ければ None。"""
+    global _LOD2_2M
+    data_dir = Path(data_dir)
+    path = data_dir / "summer_shadow_lod2_2m_20260805.npz"
+    meta_path = data_dir / "summer_shadow_lod2_2m_20260805_meta.json"
+    if not path.is_file() or not meta_path.is_file():
+        return None
+    if _LOD2_2M is None or _LOD2_2M.get("path") != str(path):
+        z = np.load(path)
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        _LOD2_2M = {
+            "path": str(path),
+            "meta": meta,
+            "building": np.asarray(z["masks_building"]),
+            "tree": np.asarray(z["masks_tree"]),
+            "elev": np.asarray(z["elev_m"]) if "elev_m" in z.files else None,
+            "xmin": float(z["xmin"]),
+            "xmax": float(z["xmax"]),
+            "ymin": float(z["ymin"]),
+            "ymax": float(z["ymax"]),
+            "nx": int(z["nx"]),
+            "ny": int(z["ny"]),
+        }
+    pack = _LOD2_2M
+    hours = [int(h) for h in pack["meta"]["hours_local"]]
+    if hour_local not in hours:
+        hour_local = min(hours, key=lambda h: abs(h - hour_local))
+    hi = hours.index(hour_local)
+    building = pack["building"][hi]
+    if include_tree_shade:
+        mask = np.maximum(building, pack["tree"][hi]).astype(np.uint8)
+        model = "lod2_dem_trees_2m"
+    else:
+        mask = building.astype(np.uint8)
+        model = "lod2_dem_2m"
+    grid = ShadowGrid(
+        masks=pack["building"],
+        elev_m=pack["elev"],
+        xmin=pack["xmin"],
+        xmax=pack["xmax"],
+        ymin=pack["ymin"],
+        ymax=pack["ymax"],
+        nx=pack["nx"],
+        ny=pack["ny"],
+        year=int(pack["meta"].get("year", 2026)),
+        date_start=str(pack["meta"]["date_start"]),
+        date_end=str(pack["meta"]["date_end"]),
+        hours=hours,
+        model=model,
+    )
+    info = {
+        "tree_shade_applied": bool(include_tree_shade),
+        "source": "summer_shadow_lod2_2m_20260805",
+        "shadow_model": model,
+        "observation_cell_m": 2.0,
+        "building_shade_native_m": 2.0,
+        "tree_shade_native_m": 2.0 if include_tree_shade else None,
+        "building_model": pack["meta"].get("building"),
+        "shade_date": pack["meta"].get("date_start"),
+        "shade_hour": int(hour_local),
+        "grid_ny": pack["ny"],
+        "grid_nx": pack["nx"],
+        "cell_x_m": pack["meta"].get("cell_x_m"),
+        "cell_y_m": pack["meta"].get("cell_y_m"),
+    }
+    return mask, grid, info
+
+
 def time_index(grid: ShadowGrid, when: date, hour_local: int) -> int:
     if hour_local not in grid.hours:
         hour_local = min(grid.hours, key=lambda h: abs(h - hour_local))

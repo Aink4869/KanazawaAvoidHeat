@@ -426,7 +426,18 @@ def route_shadow_aware_integrated(
 
     _root = _Path(__file__).resolve().parent.parent
     cell_used = 2.0 if shadow_cell_m is not None and float(shadow_cell_m) <= 2.5 else 12.0
-    if cell_used == 2.0:
+    loaded = None
+    if cell_used == 2.0 and data_dir is not None:
+        from nav_shadow import load_lod2_2m_observation
+
+        loaded = load_lod2_2m_observation(
+            _Path(data_dir),
+            hour_local,
+            include_tree_shade=getattr(factors, "include_tree_shade", False),
+        )
+    if loaded is not None:
+        mask, active_grid, tree_info = loaded
+    elif cell_used == 2.0:
         fine, fine_elev, tree_info = build_observation_2m(
             mask,
             active_grid,
@@ -477,13 +488,14 @@ def route_shadow_aware_integrated(
 
     bbox_key = (round(lon_min, 4), round(lat_min, 4), round(lon_max, 4), round(lat_max, 4))
     t_prep = time.perf_counter()
+    cache_ti = int(tree_info.get("shade_hour", ti)) if loaded is not None else ti
     Gp = _get_prepared_graph(
         Gp,
         mask,
         active_grid,
         factors,
         bbox_key,
-        ti,
+        cache_ti,
         shadow_samples=shadow_samples,
         shadow_cell_m=cell_used,
     )
@@ -618,7 +630,8 @@ def route_shadow_aware_integrated(
 
     stats = {
         "timestep_index": int(ti),
-        "shadow_model": (
+        "shadow_model": tree_info.get("shadow_model")
+        or (
             (
                 f"{active_grid.model}+tree_residual"
                 if tree_info.get("tree_shade_applied")

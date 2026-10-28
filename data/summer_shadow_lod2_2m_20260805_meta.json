@@ -1,0 +1,231 @@
+{
+  "year": 2026,
+  "model": "lod2_dem_trees_2m",
+  "date_start": "2026-08-05",
+  "date_end": "2026-08-05",
+  "hours_local": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18
+  ],
+  "n_timesteps": 13,
+  "grid_nx": 489,
+  "grid_ny": 783,
+  "cell_x_m": 1.999076665501712,
+  "cell_y_m": 1.9983861449569027,
+  "bounds_xy_m": {
+    "xmin": 506324.57658931136,
+    "xmax": 507302.1250787417,
+    "ymin": 409790.87286459055,
+    "ymax": 411355.6092160918
+  },
+  "crs": "EPSG:6670",
+  "timezone": "Asia/Tokyo",
+  "building": "LOD2 wall+roof projected to DEM; missing buildings use LOD0 prism + measuredHeight + DEM",
+  "trees": "nendophoto2024 ExG canopy, height 14.9 m",
+  "tree_height_m": 14.9,
+  "canopy_meta": {
+    "veg_pixel_fraction": 0.12350593335700757,
+    "veg_fixed_fraction": 0.0008145419034090909,
+    "exg_p80": 1.0,
+    "exg_p88": 5.0,
+    "canopy_thr": 0.2,
+    "sample_ok_fraction": 1.0,
+    "tree_frac_p90": 0.6124567474048447,
+    "tree_frac_max": 1.0000000000000018
+  },
+  "hours": [
+    {
+      "hour": 14,
+      "seconds": 108.4,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.31448965360537184,
+      "tree_frac": 0.3429810884151199,
+      "combined_frac": 0.6283263730552356
+    },
+    {
+      "hour": 6,
+      "seconds": 111.8,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.5609305095236976,
+      "tree_frac": 0.6255448735527714,
+      "combined_frac": 0.9114360111468919
+    },
+    {
+      "hour": 7,
+      "seconds": 109.6,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.43138837307090605,
+      "tree_frac": 0.4897920274127876,
+      "combined_frac": 0.8013539242648614
+    },
+    {
+      "hour": 8,
+      "seconds": 109.0,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.3617777568838848,
+      "tree_frac": 0.4219991799147007,
+      "combined_frac": 0.7181413837502971
+    },
+    {
+      "hour": 9,
+      "seconds": 109.8,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.32882025245046187,
+      "tree_frac": 0.3776388333894857,
+      "combined_frac": 0.6663088587494482
+    },
+    {
+      "hour": 10,
+      "seconds": 117.3,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.30736222436384625,
+      "tree_frac": 0.3411711549360516,
+      "combined_frac": 0.6227659857869293
+    },
+    {
+      "hour": 11,
+      "seconds": 109.6,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.28660936516517926,
+      "tree_frac": 0.3124603342500529,
+      "combined_frac": 0.58244860755262
+    },
+    {
+      "hour": 12,
+      "seconds": 109.7,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.26910550632432023,
+      "tree_frac": 0.2946874665371245,
+      "combined_frac": 0.5506611611258674
+    },
+    {
+      "hour": 13,
+      "seconds": 109.4,
+      "stats": {
+        "lod2_buildings_with_shade": 1919,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.28734848662921436,
+      "tree_frac": 0.31399342364718574,
+      "combined_frac": 0.5825243479146589
+    },
+    {
+      "hour": 15,
+      "seconds": 115.8,
+      "stats": {
+        "lod2_buildings_with_shade": 1917,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.34206698059740864,
+      "tree_frac": 0.378725315824251,
+      "combined_frac": 0.6766173831966089
+    },
+    {
+      "hour": 16,
+      "seconds": 109.3,
+      "stats": {
+        "lod2_buildings_with_shade": 1917,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.3735253482097851,
+      "tree_frac": 0.4193665493996923,
+      "combined_frac": 0.7253341064073735
+    },
+    {
+      "hour": 17,
+      "seconds": 110.8,
+      "stats": {
+        "lod2_buildings_with_shade": 1913,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.4223282587290767,
+      "tree_frac": 0.48234074283013006,
+      "combined_frac": 0.7904525356044995
+    },
+    {
+      "hour": 18,
+      "seconds": 120.1,
+      "stats": {
+        "lod2_buildings_with_shade": 1906,
+        "lod0_fallback_buildings": 15,
+        "lod0_skipped_covered_by_lod2": 1798,
+        "lod2_loaded": 1919,
+        "lod0_loaded": 1813
+      },
+      "building_frac": 0.5528889724644608,
+      "tree_frac": 0.6003337799402957,
+      "combined_frac": 0.9000958507340285
+    }
+  ]
+}
