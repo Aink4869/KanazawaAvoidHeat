@@ -250,8 +250,13 @@
     .round svg { width: 24px; height: 24px; }
     .round.danger { background: var(--red); border: none; color: #fff; }
     .eta { flex: 1; text-align: center; min-width: 0; }
-    .eta-time { font-size: 26px; font-weight: 700; color: var(--green); line-height: 1.15; }
-    .eta-sub { font-size: 14px; color: var(--muted); }
+    .eta-pair { display: flex; justify-content: center; align-items: flex-end; gap: 16px; }
+    .eta-col { min-width: 0; }
+    .eta-kicker { font-size: 12px; font-weight: 700; color: var(--blue); }
+    .eta-kicker.time { color: var(--green); }
+    .eta-time { font-size: 24px; font-weight: 700; color: var(--blue); line-height: 1.15; }
+    .eta-time.time { color: var(--green); }
+    .eta-sub { font-size: 14px; color: var(--text); font-weight: 500; }
     .eta-sys { font-size: 11px; color: var(--muted); margin-top: 2px; }
     .sim-row { display: flex; gap: 8px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
     .chip {
@@ -261,8 +266,14 @@
     .chip.on { background: #e8f0fe; border-color: #aecbfa; color: var(--blue); }
     .chip svg { width: 16px; height: 16px; }
 
-    .sum-time { font-size: 24px; font-weight: 700; color: var(--green); }
-    .sum-time span { font-size: 16px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+    .sum-pair { display: flex; align-items: flex-end; gap: 18px; margin: 2px 0 8px; }
+    .sum-shade, .sum-time { flex: 1; min-width: 0; margin: 0; }
+    .sum-kicker { font-size: 13px; font-weight: 700; line-height: 1.2; }
+    .sum-shade .sum-kicker { color: var(--blue); }
+    .sum-time .sum-kicker { color: var(--green); }
+    .sum-pct { font-size: 24px; font-weight: 700; color: var(--blue); line-height: 1.15; }
+    .sum-pct.time { color: var(--green); }
+    .sum-sys { font-size: 13px; color: var(--muted); margin-top: 2px; }
     .sum-meta { font-size: 13px; color: var(--muted); margin: 2px 0 10px; line-height: 1.5; }
     .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
     #btnClearPts { flex: 1 0 100%; }
@@ -570,7 +581,10 @@
     <div id="sheetSetup">
       <div class="status" id="status">サーバーに接続しています…</div>
       <div id="sumBox" class="hidden">
-        <div class="sum-time" id="sumTime"></div>
+        <div class="sum-pair">
+          <div class="sum-shade" id="sumShade"></div>
+          <div class="sum-time" id="sumTime"></div>
+        </div>
         <div class="sum-meta" id="sumMeta"></div>
       </div>
       <div class="btn-row">
@@ -596,8 +610,17 @@
           <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
         <div class="eta">
-          <div class="eta-time" id="etaTime">—</div>
-          <div class="eta-sub" id="etaSub">—</div>
+          <div class="eta-pair">
+            <div class="eta-col">
+              <div class="eta-kicker" id="t_etaShade">日陰率</div>
+              <div class="eta-time" id="etaShade">—</div>
+            </div>
+            <div class="eta-col">
+              <div class="eta-kicker time" id="t_etaTime">所要</div>
+              <div class="eta-time time" id="etaTime">—</div>
+            </div>
+          </div>
+          <div class="eta-sys" id="etaSub">—</div>
           <div class="eta-sys" id="etaSys"></div>
         </div>
         <button class="round" id="btnStepsNav" title="ステップ一覧" aria-label="ステップ一覧">
@@ -680,7 +703,7 @@
           detailTitle: 'ルートの詳細', fabShade: '日陰', voiceOn: '音声', voiceOff: '消音',
           ahead: '{d}先、{i}', startSay: '案内を開始します。{i}', sysSwitched: '{sys}のルートに切り替えました',
           needOD: '起点と終点を指定してください', errPrefix: 'エラー: ', backMap: '通常表示に戻る',
-          shadeRoute: '日陰率', swap: '入れ替えました',
+          shadeRoute: '日陰率', etaShade: '日陰率', durLabel: '所要', swap: '入れ替えました',
           useCs: 'クーリングシェルター立ち寄りを必須にする', useCsOn: 'オン：必ず1か所に寄ります', useCsOff: '必須を解除：目的地へ直行',
           showLoc: '現在地を表示する', showLocOn: '青い点を表示中。起点に使えます', showLocOff: 'オフのときは位置を出しません',
           factors: '歩行区間のコスト要素', factorsHint: 'チェックした項目だけが道のコストに使われます。',
@@ -726,7 +749,7 @@
           detailTitle: 'Route details', fabShade: 'Shade', voiceOn: 'Voice', voiceOff: 'Muted',
           ahead: 'In {d}, {i}', startSay: 'Starting navigation. {i}', sysSwitched: 'Switched to the {sys} route',
           needOD: 'Set origin and destination', errPrefix: 'Error: ', backMap: 'Back to map view',
-          shadeRoute: 'Shade', swap: 'Swapped',
+          shadeRoute: 'Shade', etaShade: 'Shade', durLabel: 'Time', swap: 'Swapped',
           useCs: 'Require a cooling-shelter stop', useCsOn: 'On: always stop at one shelter', useCsOff: 'Requirement off: go straight',
           showLoc: 'Show my location', showLocOn: 'Blue dot on. You can use it as the origin', showLocOff: 'Off: your location stays hidden',
           factors: 'Route cost factors', factorsHint: 'Only checked items are used in the walking cost.',
@@ -850,6 +873,8 @@
         $('t_steps').textContent = T('steps');
         $('t_then').textContent = T('then');
         $('t_restShade').textContent = T('restShade');
+        if ($('t_etaShade')) $('t_etaShade').textContent = T('etaShade');
+        if ($('t_etaTime')) $('t_etaTime').textContent = T('durLabel');
         $('t_recenter').textContent = T('recenter');
         $('t_lgShade').textContent = T('lgShade');
         $('t_lgSun').textContent = T('lgSun');
@@ -1823,9 +1848,15 @@
       function showSummary(r) {
         var walkS = r.total / r.walk;
         $('sumBox').classList.remove('hidden');
-        $('sumTime').innerHTML = fmtDur(walkS + r.dwell) + '<span>(' + fmtDist(r.total) + ')</span>';
+        $('sumShade').innerHTML =
+          '<div class="sum-kicker">' + escapeHtml(T('shadeRoute')) + '</div>' +
+          '<div class="sum-pct">' + escapeHtml(pct(r.meanShade)) + '</div>' +
+          '<div class="sum-sys">' + escapeHtml(sysLabel(r.sys)) + '</div>';
+        $('sumTime').innerHTML =
+          '<div class="sum-kicker">' + escapeHtml(T('durLabel')) + '</div>' +
+          '<div class="sum-pct time">' + escapeHtml(fmtDur(walkS + r.dwell)) + '</div>' +
+          '<div class="sum-sys">' + escapeHtml(fmtDist(r.total)) + '</div>';
         var lines = [];
-        lines.push(T('shadeRoute') + ' ' + pct(r.meanShade) + ' · ' + sysLabel(r.sys));
         if (r.csName && r.dwell > 0) {
           lines.push(T('stopCs') + ': ' + r.csName);
           lines.push(T('walk') + ' ' + fmtDur(walkS) + ' + ' + T('dwell') + ' ' + fmtDur(r.dwell));
@@ -2198,6 +2229,7 @@
 
         var remain = Math.max(0, r.total - nav.along);
         var remainS = remain / r.walk + (nav.csPassed || r.csAlong == null ? 0 : r.dwell);
+        $('etaShade').textContent = nav.arrived ? '—' : pct(shadeAhead(r, nav.along));
         $('etaTime').textContent = nav.arrived ? T('arrived') : fmtDur(remainS);
         var eta = new Date(Date.now() + remainS * 1000);
         $('etaSub').textContent = fmtDist(remain) + ' · ' + fmtClock(eta) + ' ' + T('arriveAt') +
