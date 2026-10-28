@@ -335,6 +335,32 @@ def _pick_auto_visit_cs(
     return path, cost, site, meta
 
 
+def _chosen_edges(G: nx.MultiDiGraph, path: list) -> list[dict]:
+    """Dijkstra が歩いた辺（nav_cost 最小）。平行辺の別属性の最小値は混ぜない。"""
+    rows: list[dict] = []
+    for u, v in zip(path[:-1], path[1:]):
+        if u not in G or v not in G[u]:
+            continue
+        _k, data = min(
+            G[u][v].items(),
+            key=lambda kv: (float(kv[1].get("nav_cost", 0.0)), str(kv[0])),
+        )
+        rows.append(data)
+    return rows
+
+
+def _length_weighted(rows: list[dict], attr: str) -> float:
+    num = 0.0
+    den = 0.0
+    for data in rows:
+        length = float(data.get("length", 0.0) or 0.0)
+        if length <= 0:
+            continue
+        num += length * float(data.get(attr, 0.0) or 0.0)
+        den += length
+    return num / den if den else 0.0
+
+
 def _stats_snapshot(
     path: list,
     Gp: nx.MultiDiGraph,
@@ -343,9 +369,9 @@ def _stats_snapshot(
     factors: RouteFactorsIntegrated,
     visit_meta: dict,
 ) -> dict:
-    lengths = _path_edge_attr(Gp, path, "length")
-    fracs = _path_edge_attr(Gp, path, "shadow_fraction")
-    nav_lens = _path_edge_attr(Gp, path, "nav_cost")
+    rows = _chosen_edges(Gp, path)
+    lengths = [float(d.get("length", 0.0) or 0.0) for d in rows]
+    nav_lens = [float(d.get("nav_cost", 0.0) or 0.0) for d in rows]
     walk_cost = float(sum(nav_lens))
     return {
         "cs_id": visited_site.cs_id,
@@ -353,7 +379,7 @@ def _stats_snapshot(
         "path_length_geometric_m": float(sum(lengths)),
         "path_walk_cost": walk_cost,
         "path_cost_total": walk_cost + dwell_cost,
-        "mean_shadow_fraction_on_path": float(np.mean(fracs)) if fracs else 0.0,
+        "mean_shadow_fraction_on_path": _length_weighted(rows, "shadow_fraction"),
         "selection_cost_estimate": visit_meta.get("selection_cost_estimate"),
         "candidates_evaluated": visit_meta.get("candidates_evaluated"),
         "selection_method": visit_meta.get("selection_method"),
@@ -546,10 +572,10 @@ def route_shadow_aware_integrated(
 
     coords_xy = [(float(Gp.nodes[n]["x"]), float(Gp.nodes[n]["y"])) for n in path]
 
-    lengths = _path_edge_attr(Gp, path, "length")
-    fracs = _path_edge_attr(Gp, path, "shadow_fraction")
-    grades = _path_edge_attr(Gp, path, "slope_grade_abs")
-    nav_lens = _path_edge_attr(Gp, path, "nav_cost")
+    rows = _chosen_edges(Gp, path)
+    lengths = [float(d.get("length", 0.0) or 0.0) for d in rows]
+    fracs = [float(d.get("shadow_fraction", 0.0) or 0.0) for d in rows]
+    nav_lens = [float(d.get("nav_cost", 0.0) or 0.0) for d in rows]
 
     timings["total_s"] = time.perf_counter() - t0
 
@@ -565,8 +591,8 @@ def route_shadow_aware_integrated(
         "path_walk_cost": float(sum(nav_lens)),
         "cs_dwell_cost": float(dwell_cost),
         "cs_visit_required": use_cs,
-        "mean_shadow_fraction_on_path": float(np.mean(fracs)) if fracs else 0.0,
-        "mean_slope_grade_abs": float(np.mean(grades)) if grades else 0.0,
+        "mean_shadow_fraction_on_path": _length_weighted(rows, "shadow_fraction"),
+        "mean_slope_grade_abs": _length_weighted(rows, "slope_grade_abs"),
         "approx_time_s": float(sum(lengths)) / factors.walk_speed_m_s
         + (factors.cs_dwell_time_s if use_cs else 0.0),
         "timing_s": {k: round(v, 3) for k, v in timings.items()},

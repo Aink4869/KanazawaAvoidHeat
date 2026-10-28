@@ -1436,7 +1436,9 @@
         });
         var now = new Date().getHours();
         var best = hours.reduce(function (a, b) { return Math.abs(b - now) < Math.abs(a - now) ? b : a; }, hours[0]);
-        sel.value = String(best);
+        var prefer = 14;
+        var picked = hours.indexOf(prefer) >= 0 ? prefer : best;
+        sel.value = String(picked);
       }
       async function loadMeta() {
         try {
@@ -1448,7 +1450,8 @@
         rd.min = meta.date_start;
         rd.max = meta.date_end;
         if (!rd.value) {
-          var t = isoToday();
+          var pinned = '2026-08-05';
+          var t = (pinned >= meta.date_start && pinned <= meta.date_end) ? pinned : isoToday();
           if (t < meta.date_start) t = meta.date_start;
           if (t > meta.date_end) t = meta.date_end;
           rd.value = t;
@@ -1849,7 +1852,7 @@
         $('sumShade').innerHTML =
           '<div class="sum-kicker">' + escapeHtml(T('shadeRoute')) + '</div>' +
           '<div class="sum-pct">' + escapeHtml(pct(r.meanShade)) + '</div>' +
-          '<div class="sum-sys">' + escapeHtml(sysLabel(r.sys)) + '</div>';
+          '<div class="sum-sys">' + escapeHtml(sysLabel(r.sys) + ' · ' + $('routeDate').value + ' ' + String($('hour').value).padStart(2, '0') + ':00') + '</div>';
         $('sumTime').innerHTML =
           '<div class="sum-kicker">' + escapeHtml(T('durLabel')) + '</div>' +
           '<div class="sum-pct time">' + escapeHtml(fmtDur(walkS + r.dwell)) + '</div>' +
