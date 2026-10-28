@@ -19,9 +19,10 @@ import threading
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlencode
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -189,11 +190,16 @@ def integrated_ui_compare():
 
 @app.get("/navi")
 @app.get("/navi/new")
-def integrated_ui_navi():
+def integrated_ui_navi(request: Request):
+    # 以前の HTML がブラウザに残ると、シートの見た目が更新されない。
+    if request.query_params.get("_sheet") != "1":
+        pairs = [(k, v) for k, v in request.query_params.multi_items() if k != "_sheet"]
+        pairs.append(("_sheet", "1"))
+        return RedirectResponse(url=f"{request.url.path}?{urlencode(pairs)}", status_code=307)
     p = STATIC / "navi.html"
     if not p.is_file():
         raise HTTPException(404, "integrated/static/navi.html がありません")
-    return FileResponse(p)
+    return FileResponse(p, headers={"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"})
 
 
 @app.get("/en")
