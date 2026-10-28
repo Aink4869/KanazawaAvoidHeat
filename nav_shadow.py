@@ -150,6 +150,25 @@ def time_index(grid: ShadowGrid, when: date, hour_local: int) -> int:
     return ti
 
 
+def _edge_sample_xy(line: LineString, n_samples: int):
+    """辺上の観測点。3点のときは従来どおり 0.2 / 0.5 / 0.8。それ以外は等間隔。"""
+    n = int(n_samples) if n_samples else 3
+    if n < 1:
+        n = 1
+    coords = list(line.coords)
+    if n == 3 and len(coords) == 2:
+        (x0, y0), (x1, y1) = coords
+        xs = (x0 * 0.8 + x1 * 0.2, x0 * 0.5 + x1 * 0.5, x0 * 0.2 + x1 * 0.8)
+        ys = (y0 * 0.8 + y1 * 0.2, y0 * 0.5 + y1 * 0.5, y0 * 0.2 + y1 * 0.8)
+        return xs, ys
+    if n == 3:
+        ts = (0.2, 0.5, 0.8)
+    else:
+        ts = tuple((i + 0.5) / n for i in range(n))
+    pts = [line.interpolate(float(t), normalized=True) for t in ts]
+    return [p.x for p in pts], [p.y for p in pts]
+
+
 def sample_edge_shadow_fraction(
     mask: np.ndarray,
     transform,
@@ -161,16 +180,7 @@ def sample_edge_shadow_fraction(
 ) -> float:
     if line is None or line.is_empty:
         return 0.0
-    coords = list(line.coords)
-    if len(coords) == 2:
-        (x0, y0), (x1, y1) = coords
-        xs = (x0 * 0.8 + x1 * 0.2, x0 * 0.5 + x1 * 0.5, x0 * 0.2 + x1 * 0.8)
-        ys = (y0 * 0.8 + y1 * 0.2, y0 * 0.5 + y1 * 0.5, y0 * 0.2 + y1 * 0.8)
-    else:
-        ts = (0.2, 0.5, 0.8)
-        pts = [line.interpolate(t, normalized=True) for t in ts]
-        xs = [p.x for p in pts]
-        ys = [p.y for p in pts]
+    xs, ys = _edge_sample_xy(line, n_samples)
 
     tot = 0.0
     cnt = 0

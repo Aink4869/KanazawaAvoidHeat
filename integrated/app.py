@@ -145,6 +145,8 @@ class RouteLatLonIntegratedRequest(BaseModel):
         description="true のとき本番 CS 選定と全57件基準の差分を stats.accuracy_vs_reference に付与",
     )
     lang: str = Field("ja", description="UI language for CS labels in response: ja | en")
+    shadow_samples: int = Field(3, ge=1, le=16, description="辺あたりの日陰観測点。3 は従来の 0.2/0.5/0.8")
+    shadow_cell_m: float = Field(12.0, description="12 または 2。2 は樹木影を 2m で引き直し、建物影は 12m のまま載せる")
     factors: RouteFactorsIntegratedModel = Field(default_factory=RouteFactorsIntegratedModel)
 
 
@@ -192,7 +194,7 @@ def integrated_ui_compare():
 @app.get("/navi/new")
 def integrated_ui_navi(request: Request):
     # 以前の HTML がブラウザに残ると、シートの見た目が更新されない。
-    if request.query_params.get("_sheet") != "1":
+    if request.query_params.get("_sheet") not in ("1", "2"):
         pairs = [(k, v) for k, v in request.query_params.multi_items() if k != "_sheet"]
         pairs.append(("_sheet", "1"))
         return RedirectResponse(url=f"{request.url.path}?{urlencode(pairs)}", status_code=307)
@@ -375,6 +377,8 @@ def api_route_latlon(req: RouteLatLonIntegratedRequest):
             visit_cs_id=req.visit_cs_id,
             compare_accuracy=req.compare_accuracy,
             data_dir=DATA,
+            shadow_samples=req.shadow_samples,
+            shadow_cell_m=req.shadow_cell_m,
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

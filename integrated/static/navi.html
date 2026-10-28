@@ -138,6 +138,8 @@
     .seg button + button { border-left: 1px solid var(--line); }
     .seg button.on[data-sys="old"] { background: #e8f0fe; color: var(--blue); }
     .seg button.on[data-sys="new"] { background: #e6f4ea; color: var(--green); }
+    .seg button.on[data-obs="12"] { background: #f1f3f4; color: var(--ink); }
+    .seg button.on[data-obs="2"] { background: #e8f0fe; color: var(--blue); }
 
     /* ===== 案内バナー（ナビモード） ===== */
     #banner {
@@ -513,6 +515,10 @@
       <button type="button" data-sys="old"><span id="t_sysOld">旧システム</span><small id="t_sysOldN">建物の日陰のみ</small></button>
       <button type="button" data-sys="new"><span id="t_sysNew">最新システム</span><small id="t_sysNewN">建物＋樹木の日陰</small></button>
     </div>
+    <div class="seg" id="obsSeg" role="group" aria-label="日陰の観測">
+      <button type="button" data-obs="12"><span id="t_obs12">12m・3点</span><small id="t_obs12N">いまのルート</small></button>
+      <button type="button" data-obs="2"><span id="t_obs2">2m・8点</span><small id="t_obs2N">樹木影は2m・建物影は12m</small></button>
+    </div>
     </div>
   </section>
 
@@ -670,6 +676,7 @@
       var isEn = (params.get('lang') || 'ja').toLowerCase() === 'en';
       var pathNorm = (location.pathname || '').replace(/\/+$/, '');
       var sys = (params.get('sys') || (/\/new$/.test(pathNorm) ? 'new' : 'old')) === 'new' ? 'new' : 'old';
+      var fineObs = params.get('_sheet') === '2';
 
       var I18N = {
         ja: {
@@ -677,6 +684,7 @@
           pickOrig: '地図をタップして起点を指定してください', pickDest: '地図をタップして終点を指定してください',
           csDest: '終点を CS 一覧から…', sysOld: '旧システム', sysNew: '最新システム',
           sysOldN: '建物の日陰のみ', sysNewN: '建物＋樹木の日陰', sysOldShort: '旧', sysNewShort: '新',
+          obs12: '12m・3点', obs12N: 'いまのルート', obs2: '2m・8点', obs2N: '樹木影は2m・建物影は12m',
           search: 'ルート検索', start: 'ナビ開始', steps: 'ステップ', clearPts: '地点をクリア', computing: 'ルート計算中…',
           computingOther: '{sys}のルートを計算中…', connecting: 'サーバーに接続しています…',
           ready: '起点と終点を地図で指定し、「ルート検索」を押してください。',
@@ -723,6 +731,7 @@
           pickOrig: 'Tap the map to set the origin', pickDest: 'Tap the map to set the destination',
           csDest: 'Destination from cooling shelters…', sysOld: 'Previous', sysNew: 'Latest',
           sysOldN: 'Building shade only', sysNewN: 'Building + tree shade', sysOldShort: 'Prev', sysNewShort: 'New',
+          obs12: '12 m · 3 pts', obs12N: 'Current route grid', obs2: '2 m · 8 pts', obs2N: 'Trees at 2 m, buildings at 12 m',
           search: 'Directions', start: 'Start', steps: 'Steps', clearPts: 'Clear points', computing: 'Computing route…',
           computingOther: 'Computing {sys} route…', connecting: 'Connecting to server…',
           ready: 'Set origin and destination on the map, then tap Directions.',
@@ -865,6 +874,10 @@
         $('t_sysNew').textContent = T('sysNew');
         $('t_sysOldN').textContent = T('sysOldN');
         $('t_sysNewN').textContent = T('sysNewN');
+        $('t_obs12').textContent = T('obs12');
+        $('t_obs12N').textContent = T('obs12N');
+        $('t_obs2').textContent = T('obs2');
+        $('t_obs2N').textContent = T('obs2N');
         $('t_search').textContent = T('search');
         $('t_clearPts').textContent = T('clearPts');
         $('t_start').textContent = T('start');
@@ -1476,6 +1489,23 @@
       Array.prototype.forEach.call($('sysSeg').querySelectorAll('button'), function (b) {
         b.onclick = function () { switchSystem(b.getAttribute('data-sys')); };
       });
+      function refreshObsUi() {
+        Array.prototype.forEach.call($('obsSeg').querySelectorAll('button'), function (b) {
+          b.classList.toggle('on', (b.getAttribute('data-obs') === '2') === fineObs);
+        });
+      }
+      function switchObs(next) {
+        var want = next === '2';
+        if (want === fineObs) return;
+        var p = new URLSearchParams(location.search);
+        p.set('_sheet', want ? '2' : '1');
+        p.set('sys', sys);
+        location.href = location.pathname + '?' + p.toString();
+      }
+      Array.prototype.forEach.call($('obsSeg').querySelectorAll('button'), function (b) {
+        b.onclick = function () { switchObs(b.getAttribute('data-obs')); };
+      });
+      refreshObsUi();
       $('fabSys').onclick = function () { switchSystem(sys === 'new' ? 'old' : 'new'); };
 
       async function switchSystem(next) {
@@ -1552,6 +1582,8 @@
           visit_cs_id: withCs && visitCsId != null ? visitCsId : null,
           compare_accuracy: false,
           lang: isEn ? 'en' : 'ja',
+          shadow_samples: fineObs ? 8 : 3,
+          shadow_cell_m: fineObs ? 2 : 12,
           factors: Object.assign({}, collectFactors(), { include_tree_shade: sysKey === 'new', use_cooling_shelter: withCs })
         };
       }
@@ -1852,7 +1884,7 @@
         $('sumShade').innerHTML =
           '<div class="sum-kicker">' + escapeHtml(T('shadeRoute')) + '</div>' +
           '<div class="sum-pct">' + escapeHtml(pct(r.meanShade)) + '</div>' +
-          '<div class="sum-sys">' + escapeHtml(sysLabel(r.sys) + ' · ' + $('routeDate').value + ' ' + String($('hour').value).padStart(2, '0') + ':00') + '</div>';
+          '<div class="sum-sys">' + escapeHtml(sysLabel(r.sys) + ' · ' + (fineObs ? T('obs2') : T('obs12')) + ' · ' + $('routeDate').value + ' ' + String($('hour').value).padStart(2, '0') + ':00') + '</div>';
         $('sumTime').innerHTML =
           '<div class="sum-kicker">' + escapeHtml(T('durLabel')) + '</div>' +
           '<div class="sum-pct time">' + escapeHtml(fmtDur(walkS + r.dwell)) + '</div>' +

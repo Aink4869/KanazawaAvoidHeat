@@ -157,12 +157,14 @@ def _get_prepared_graph(
     ti: int,
     *,
     shadow_samples: int | None = None,
+    shadow_cell_m: float = 12.0,
 ) -> nx.MultiDiGraph:
     samples = (
         shadow_samples if shadow_samples is not None else SHADOW_SAMPLES_PER_EDGE
     )
+    cell = 2.0 if float(shadow_cell_m) <= 2.5 else 12.0
     pkey = prepared_cache_key(
-        bbox_key, ti, _factors_cache_tuple(factors) + (samples,)
+        bbox_key, ti, _factors_cache_tuple(factors) + (samples, cell)
     )
     cached = cache_get_prepared(pkey)
     if cached is not None:
@@ -399,6 +401,7 @@ def route_shadow_aware_integrated(
     auto_cs_max_candidates: int | None = None,
     auto_cs_fallbacks: tuple[int, ...] | None = None,
     shadow_samples: int | None = None,
+    shadow_cell_m: float | None = None,
     compare_accuracy: bool = False,
     data_dir=None,
     allow_flat_fallback: bool = True,
@@ -418,18 +421,45 @@ def route_shadow_aware_integrated(
         allow_flat_fallback=allow_flat_fallback,
     )
 
-    from nav_tree_shade import apply_tree_residual
+    from nav_tree_shade import apply_tree_residual, build_observation_2m
     from pathlib import Path as _Path
 
     _root = _Path(__file__).resolve().parent.parent
-    mask, residual, tree_info = apply_tree_residual(
-        mask,
-        active_grid,
-        when,
-        hour_local,
-        include_tree_shade=getattr(factors, "include_tree_shade", False),
-        root=_root,
-    )
+    cell_used = 2.0 if shadow_cell_m is not None and float(shadow_cell_m) <= 2.5 else 12.0
+    if cell_used == 2.0:
+        fine, fine_elev, tree_info = build_observation_2m(
+            mask,
+            active_grid,
+            when,
+            hour_local,
+            include_tree_shade=getattr(factors, "include_tree_shade", False),
+            root=_root,
+        )
+        mask = fine
+        active_grid = ShadowGrid(
+            masks=fine[np.newaxis, :, :],
+            elev_m=fine_elev,
+            xmin=active_grid.xmin,
+            xmax=active_grid.xmax,
+            ymin=active_grid.ymin,
+            ymax=active_grid.ymax,
+            nx=int(fine.shape[1]),
+            ny=int(fine.shape[0]),
+            year=active_grid.year,
+            date_start=active_grid.date_start,
+            date_end=active_grid.date_end,
+            hours=list(active_grid.hours),
+            model=active_grid.model,
+        )
+    else:
+        mask, residual, tree_info = apply_tree_residual(
+            mask,
+            active_grid,
+            when,
+            hour_local,
+            include_tree_shade=getattr(factors, "include_tree_shade", False),
+            root=_root,
+        )
 
     to_wgs = Transformer.from_crs("EPSG:6670", "EPSG:4326", always_xy=True)
     olon, olat = to_wgs.transform(orig_xy[0], orig_xy[1])
@@ -448,7 +478,14 @@ def route_shadow_aware_integrated(
     bbox_key = (round(lon_min, 4), round(lat_min, 4), round(lon_max, 4), round(lat_max, 4))
     t_prep = time.perf_counter()
     Gp = _get_prepared_graph(
-        Gp, mask, active_grid, factors, bbox_key, ti, shadow_samples=shadow_samples
+        Gp,
+        mask,
+        active_grid,
+        factors,
+        bbox_key,
+        ti,
+        shadow_samples=shadow_samples,
+        shadow_cell_m=cell_used,
     )
     timings["prepare_costs_s"] = time.perf_counter() - t_prep
 
@@ -582,7 +619,12 @@ def route_shadow_aware_integrated(
     stats = {
         "timestep_index": int(ti),
         "shadow_model": (
-            f"{active_grid.model}+tree_residual" if tree_info.get("tree_shade_applied") else active_grid.model
+            (
+                f"{active_grid.model}+tree_residual"
+                if tree_info.get("tree_shade_applied")
+                else active_grid.model
+            )
+            + ("+obs2m" if cell_used == 2.0 else "")
         ),
         "shadow_fallback_to_flat": shadow_fallback,
         "path_edges": len(path) - 1,
@@ -630,6 +672,9 @@ def route_shadow_aware_integrated(
         "optimization_profile": {
             "auto_cs_candidates": cs_cap if visit_cs_id is None else None,
             "shadow_samples_per_edge": samples_used,
+            "shadow_cell_m": cell_used,
+            "building_shade_native_m": tree_info.get("building_shade_native_m", 12.0),
+            "tree_shade_native_m": tree_info.get("tree_shade_native_m", 12.0 if tree_info.get("tree_shade_applied") else None),
             "reference_cs_candidates": REFERENCE_CS_CANDIDATES,
             "reference_shadow_samples": REFERENCE_SHADOW_SAMPLES_PER_EDGE,
         },

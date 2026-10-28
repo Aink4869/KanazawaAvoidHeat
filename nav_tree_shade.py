@@ -346,3 +346,88 @@ def apply_tree_residual(
         "combined_cells": int(np.sum(combined > 0)),
     }
     return combined, residual, info
+
+
+_OBS2_MEM: dict[tuple, tuple] = {}
+
+
+def _nearest_resize(src: np.ndarray, ny2: int, nx2: int) -> np.ndarray:
+    ny, nx = src.shape
+    rows = np.minimum((np.arange(ny2, dtype=np.int64) * ny) // ny2, ny - 1)
+    cols = np.minimum((np.arange(nx2, dtype=np.int64) * nx) // nx2, nx - 1)
+    return np.ascontiguousarray(src[np.ix_(rows, cols)])
+
+
+def build_observation_2m(
+    building_mask: np.ndarray,
+    grid,
+    when: date,
+    hour_local: int,
+    *,
+    include_tree_shade: bool,
+    root: Path | None = None,
+) -> tuple[np.ndarray, np.ndarray | None, dict]:
+    """ルート観測用の 2 m 格子。
+
+    建物影は 12 m の計算結果を、同じ範囲の 2 m 格子へ最近傍で載せる。
+    樹木影は樹冠を 2 m 格子に載せてから、その時刻の太陽で影を引き直す。
+    """
+    cell = 2.0
+    nx2 = max(8, int(round((float(grid.xmax) - float(grid.xmin)) / cell)))
+    ny2 = max(8, int(round((float(grid.ymax) - float(grid.ymin)) / cell)))
+    key = (
+        when.isoformat(),
+        int(hour_local),
+        bool(include_tree_shade),
+        round(float(grid.xmin), 3),
+        round(float(grid.ymin), 3),
+        nx2,
+        ny2,
+        tuple(building_mask.shape),
+    )
+    cached = _OBS2_MEM.get(key)
+    if cached is not None:
+        return cached
+
+    bld = _nearest_resize((np.asarray(building_mask) > 0).astype(np.uint8), ny2, nx2)
+    elev = None
+    if getattr(grid, "elev_m", None) is not None and np.asarray(grid.elev_m).shape == building_mask.shape:
+        elev = _nearest_resize(np.asarray(grid.elev_m, dtype=np.float64), ny2, nx2)
+
+    info = {
+        "tree_shade_applied": False,
+        "source": "building_12m_on_2m_lattice",
+        "observation_cell_m": 2.0,
+        "building_shade_native_m": 12.0,
+        "tree_shade_native_m": None,
+        "grid_ny": ny2,
+        "grid_nx": nx2,
+        "samples_note": "辺あたりの点数はルート側で指定する",
+    }
+    out = bld
+    if include_tree_shade:
+        eng = get_tree_engine(grid, root=root)
+        if eng is not None and np.any(eng.canopy):
+            canopy2 = _nearest_resize(eng.canopy.astype(bool), ny2, nx2)
+            _tf, X, Y, cellx, celly = _grid_xy(
+                float(grid.xmin), float(grid.xmax), float(grid.ymin), float(grid.ymax), nx2, ny2
+            )
+            az, elev_sun = _solar(when, hour_local)
+            tree = _tree_shadow(
+                canopy2, X, Y, az, elev_sun, eng.tree_height_m, cellx, celly
+            )
+            tree_u = tree.astype(np.uint8)
+            out = np.maximum(bld, tree_u)
+            info.update(
+                {
+                    "tree_shade_applied": True,
+                    "source": eng.source + "+recast_2m",
+                    "tree_shade_native_m": 2.0,
+                    "tree_height_m": eng.tree_height_m,
+                    "tree_cells": int(np.sum(tree_u > 0)),
+                    "combined_cells": int(np.sum(out > 0)),
+                }
+            )
+    result = (out, elev, info)
+    _OBS2_MEM[key] = result
+    return result
